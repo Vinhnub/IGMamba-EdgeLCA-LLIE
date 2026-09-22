@@ -169,3 +169,4 @@ output_noise
 output_noise_detect
 weights_and_results
 dataset
+weights_cidnet

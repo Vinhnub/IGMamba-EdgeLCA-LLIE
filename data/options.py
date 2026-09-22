@@ -69,6 +69,8 @@ def option():
     parser.add_argument('--P_weight',  type=float, default=0.01)
     parser.add_argument('--LSGD_weight', type=float, default=0.0)
     parser.add_argument('--dark_focus', type=_str2bool, default=True, help='Enable dark focus for both IG_Mamba and LSGD loss (False focuses on bright regions)')
+    parser.add_argument('--number_warmup_epoch', '--number_warmup_epochs', type=int, default=0, help='Number of warmup epochs for loss weights where weights are 0')
+    parser.add_argument('--number_transition_epoch', '--number_transition_epochs', type=int, default=1, help='Number of transition epochs for loss weights to linearly scale from 0 to 1')
     
     # use random gamma function (enhancement curve) to improve generalization
     parser.add_argument('--gamma', type=_str2bool, default=False)

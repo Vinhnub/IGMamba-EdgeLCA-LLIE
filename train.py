@@ -91,9 +91,9 @@ def train(epoch):
         gt_rgb = im2
         output_hvi = model.HVIT(output_rgb)
         gt_hvi = model.HVIT(gt_rgb)
-                # --- Warm-up Loss Weights ---
-        warmup_epochs = 1     # Trọng số bằng 0 trong 10 epoch đầu
-        transition_epochs = 1 # Tăng dần trọng số từ 0 lên 1 trong 10 epoch tiếp theo
+        # --- Warm-up Loss Weights ---
+        warmup_epochs = opt.number_warmup_epoch
+        transition_epochs = opt.number_transition_epoch
         
         if epoch <= warmup_epochs:
             warm_up_multiplier = 0.0

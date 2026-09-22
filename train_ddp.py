@@ -127,8 +127,8 @@ def train(epoch, local_rank):
         gt_hvi = model_module.HVIT(gt_rgb)
         
         # --- Warm-up Loss Weights ---
-        warmup_epochs = 0
-        transition_epochs = 0
+        warmup_epochs = opt.number_warmup_epoch
+        transition_epochs = opt.number_transition_epoch
         if epoch <= warmup_epochs:
             warm_up_multiplier = 0.0
         else:

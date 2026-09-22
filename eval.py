@@ -75,7 +75,7 @@ if __name__ == '__main__':
     eval_parser.add_argument('--VV', action='store_true', help='output VV dataset')
     eval_parser.add_argument('--alpha', type=float, default=1.0)
     eval_parser.add_argument('--gamma', type=float, default=1.0)
-    eval_parser.add_argument('--unpaired_weights', type=str, default='./weights/LOLv2_syn/w_perc.pth')
+    eval_parser.add_argument('--unpaired_weights', type=str, default='weights_cidnet/LOLv2_syn/w_perc.pth')
 
     ep = eval_parser.parse_args()
 
@@ -140,19 +140,19 @@ if __name__ == '__main__':
     
     elif ep.unpaired: 
         if ep.DICM:
-            eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/DICM"), num_workers=num_workers, batch_size=1, shuffle=False)
+            eval_data = DataLoader(dataset=get_SICE_eval_set("dataset/UnPair/DICM"), num_workers=num_workers, batch_size=1, shuffle=False)
             output_folder = './output/DICM/'
         elif ep.LIME:
-            eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/LIME"), num_workers=num_workers, batch_size=1, shuffle=False)
+            eval_data = DataLoader(dataset=get_SICE_eval_set("dataset/UnPair/LIME"), num_workers=num_workers, batch_size=1, shuffle=False)
             output_folder = './output/LIME/'
         elif ep.MEF:
-            eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/MEF"), num_workers=num_workers, batch_size=1, shuffle=False)
+            eval_data = DataLoader(dataset=get_SICE_eval_set("dataset/UnPair/MEF"), num_workers=num_workers, batch_size=1, shuffle=False)
             output_folder = './output/MEF/'
         elif ep.NPE:
-            eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/NPE"), num_workers=num_workers, batch_size=1, shuffle=False)
+            eval_data = DataLoader(dataset=get_SICE_eval_set("dataset/UnPair/NPE"), num_workers=num_workers, batch_size=1, shuffle=False)
             output_folder = './output/NPE/'
         elif ep.VV:
-            eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/VV"), num_workers=num_workers, batch_size=1, shuffle=False)
+            eval_data = DataLoader(dataset=get_SICE_eval_set("dataset/UnPair/VV"), num_workers=num_workers, batch_size=1, shuffle=False)
             output_folder = './output/VV/'
         elif ep.custome:
             eval_data = DataLoader(dataset=get_SICE_eval_set(ep.custome_path), num_workers=num_workers, batch_size=1, shuffle=False)
