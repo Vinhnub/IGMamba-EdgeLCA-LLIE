@@ -91,34 +91,34 @@ if __name__ == '__main__':
     num_workers = 1
     alpha = None
     if ep.lol:
-        eval_data = DataLoader(dataset=get_eval_set(r"C:\Users\admin\Downloads\Test_LLIE"), num_workers=num_workers, batch_size=1, shuffle=False)
+        eval_data = DataLoader(dataset=get_eval_set(r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\dataset\LOL\LOLv1\test\low"), num_workers=num_workers, batch_size=1, shuffle=False)
         output_folder = './output/LOLv1/'
         if ep.perc:
             weight_path = './weights/LOLv1/w_perc.pth'
         else:
-            weight_path = r'E:\PythonFile\Project\Low-Light-Image-Enhancement\weights_and_results\LoLv1\Base-wP\weight\epoch_460.pth'
+            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_cidnet\LOLv1\w_perc.pth'
         
             
     elif ep.lol_v2_real:
-        eval_data = DataLoader(dataset=get_eval_set("E:/PythonFile/Project/Low-Light-Image-Enhancement/mydata/dataset/dataset/LOLv2-real/Test/Input"), num_workers=num_workers, batch_size=1, shuffle=False)
+        eval_data = DataLoader(dataset=get_eval_set(r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\dataset\LOL\LOLv2-real\Test\Input"), num_workers=num_workers, batch_size=1, shuffle=False)
         output_folder = './output/LOLv2_real/'
         if ep.best_GT_mean:
             weight_path = './weights/LOLv2_real/w_perc.pth'
             alpha = 0.84
         elif ep.best_PSNR:
-            weight_path = r"E:\PythonFile\Project\Low-Light-Image-Enhancement\weights_and_results\LoLv2_Real\LSGD-wP\wDW-wEdge\epoch_435_best_psnr_ssim.pth"
+            weight_path = r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_cidnet\LOLv2_real\best_PSNR.pth"
             alpha = 0.8
         elif ep.best_SSIM:
-            weight_path = './weights/LOLv2_real/best_SSIM.pth'
+            weight_path = r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_cidnet\LOLv2_real\best_SSIM.pth"
             alpha = 0.82
             
     elif ep.lol_v2_syn:
-        eval_data = DataLoader(dataset=get_eval_set("./datasets/LOLv2/Synthetic/Test/Low"), num_workers=num_workers, batch_size=1, shuffle=False)
+        eval_data = DataLoader(dataset=get_eval_set(r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\dataset\LOL\LOLv2-synthetic\Test\Input"), num_workers=num_workers, batch_size=1, shuffle=False)
         output_folder = './output/LOLv2_syn/'
         if ep.perc:
-            weight_path = './weights/LOLv2_syn/w_perc.pth'
+            weight_path = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/weights_cidnet/LOLv2_syn/w_perc.pth'
         else:
-            weight_path = './weights/LOLv2_syn/wo_perc.pth'
+            weight_path = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/weights_cidnet/LOLv2_syn/wo_perc.pth'
             
     elif ep.SICE_grad:
         eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/SICE/SICE_Grad"), num_workers=num_workers, batch_size=1, shuffle=False)

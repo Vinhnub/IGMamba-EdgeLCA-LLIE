@@ -127,13 +127,13 @@ if __name__ == '__main__':
 
     if mea.lol:
         im_dir = './output/LOLv1/*.png'
-        label_dir = 'E:/Pythonfile/Low-Light-Image-Enhancement/mydata/dataset/LOLv1/test/high/'
+        label_dir = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/dataset/LOL/LOLv1/test/high/'
     if mea.lol_v2_real:
         im_dir = './output/LOLv2_real/*.png'
-        label_dir = 'E:/PythonFile/Project/Low-Light-Image-Enhancement/mydata/dataset/dataset/LOLv2-real/Test/GT/'
+        label_dir = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/dataset/LOL/LOLv2-real/Test/GT/'
     if mea.lol_v2_syn:
         im_dir = './output/LOLv2_syn/*.png'
-        label_dir = './datasets/LOLv2/Synthetic/Test/Normal/'
+        label_dir = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/dataset/LOL/LOLv2-synthetic/Test/GT/'
     if mea.SICE_grad:
         im_dir = './output/SICE_grad/*.png'
         label_dir = './datasets/SICE/SICE_Reshape/'
