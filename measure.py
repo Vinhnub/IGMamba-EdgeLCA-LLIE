@@ -123,6 +123,7 @@ if __name__ == '__main__':
     mea_parser.add_argument('--SICE_grad', action='store_true', help='measure SICE_grad dataset')
     mea_parser.add_argument('--SICE_mix', action='store_true', help='measure SICE_mix dataset')
     mea_parser.add_argument('--fivek', action='store_true', help='measure fivek dataset')
+    mea_parser.add_argument('--small', action='store_true', help='measure SMALL dataset')
     mea = mea_parser.parse_args()
 
     if mea.lol:
@@ -143,6 +144,9 @@ if __name__ == '__main__':
     if mea.fivek:
         im_dir = './output/fivek/*.jpg'
         label_dir = './datasets/FiveK/test/target/'
+    if mea.small:
+        im_dir = './output/SMALL/*.png'
+        label_dir = './dataset/SMALL/val/high/'
 
     avg_psnr, avg_ssim, avg_lpips = metrics(im_dir, label_dir, mea.use_GT_mean)
     print("===> Avg.PSNR: {:.4f} dB ".format(avg_psnr))

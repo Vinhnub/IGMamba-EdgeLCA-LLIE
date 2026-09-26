@@ -37,6 +37,7 @@ def option():
     parser.add_argument('--data_train_SID'          , type=str, default='./datasets/Sony_total_dark/train')
     parser.add_argument('--data_train_SICE'         , type=str, default='./datasets/SICE/Dataset/train')
     parser.add_argument('--data_train_fivek'        , type=str, default='./datasets/FiveK/train')
+    parser.add_argument('--data_train_small'        , type=str, default='./dataset/SMALL/train')
 
     # validation input
     parser.add_argument('--data_val_lol_blur'       , type=str, default='./datasets/LOL_blur/eval/low_blur')
@@ -47,6 +48,7 @@ def option():
     parser.add_argument('--data_val_SICE_mix'       , type=str, default='./datasets/SICE/Dataset/eval/test')
     parser.add_argument('--data_val_SICE_grad'      , type=str, default='./datasets/SICE/Dataset/eval/test')
     parser.add_argument('--data_test_fivek'         , type=str, default='./datasets/FiveK/test/input')
+    parser.add_argument('--data_val_small'          , type=str, default='./dataset/SMALL/val/low')
 
     # validation groundtruth
     parser.add_argument('--data_valgt_lol_blur'     , type=str, default='./datasets/LOL_blur/eval/high_sharp_scaled/')
@@ -57,6 +59,7 @@ def option():
     parser.add_argument('--data_valgt_SICE_mix'     , type=str, default='./datasets/SICE/Dataset/eval/target/')
     parser.add_argument('--data_valgt_SICE_grad'    , type=str, default='./datasets/SICE/Dataset/eval/target/')
     parser.add_argument('--data_valgt_fivek'        , type=str, default='./datasets/FiveK/test/target/')
+    parser.add_argument('--data_valgt_small'        , type=str, default='./dataset/SMALL/val/high/')
 
     parser.add_argument('--val_folder', default='./results/', help='Location to save validation datasets')
 
@@ -91,7 +94,8 @@ def option():
              'SID',
              'SICE_mix',
              'SICE_grad',
-             'fivek'],
+             'fivek',
+             'small'],
     help='Select the dataset to train on (default: %(default)s)')
 
     return parser

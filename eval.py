@@ -60,6 +60,7 @@ if __name__ == '__main__':
     eval_parser.add_argument('--SICE_grad', action='store_true', help='output SICE_grad dataset')
     eval_parser.add_argument('--SICE_mix', action='store_true', help='output SICE_mix dataset')
     eval_parser.add_argument('--fivek', action='store_true', help='output FiveK dataset')
+    eval_parser.add_argument('--small', action='store_true', help='output SMALL dataset')
 
     eval_parser.add_argument('--best_GT_mean', action='store_true', help='output lol_v2_real dataset best_GT_mean')
     eval_parser.add_argument('--best_PSNR', action='store_true', help='output lol_v2_real dataset best_PSNR')
@@ -136,6 +137,15 @@ if __name__ == '__main__':
         eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/FiveK/test/input"), num_workers=num_workers, batch_size=1, shuffle=False)
         output_folder = './output/fivek/'
         weight_path = './weights/fivek.pth'
+        norm_size = False
+
+    elif ep.small:
+        eval_data = DataLoader(dataset=get_small_eval_set("./dataset/SMALL/val/low"), num_workers=num_workers, batch_size=1, shuffle=False)
+        output_folder = './output/SMALL/'
+        if ep.perc:
+            weight_path = './weights/SMALL/w_perc.pth'
+        else:
+            weight_path = './weights/best_PSNR.pth'
         norm_size = False
     
     elif ep.unpaired: 

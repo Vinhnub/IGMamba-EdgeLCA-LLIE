@@ -241,6 +241,9 @@ def load_datasets():
     elif opt.dataset == 'fivek':
         train_set = get_fivek_training_set(opt.data_train_fivek,size=opt.cropSize)
         test_set = get_fivek_eval_set(opt.data_val_fivek)
+    elif opt.dataset == 'small':
+        train_set = get_small_training_set(opt.data_train_small, size=opt.cropSize)
+        test_set = get_small_eval_set(opt.data_val_small)
     else:
         raise Exception("should choose a dataset")
     
@@ -403,6 +406,10 @@ if __name__ == '__main__':
                 if opt.dataset == 'fivek':
                     output_folder = 'fivek/'
                     label_dir = opt.data_valgt_fivek
+                    norm_size = False
+                if opt.dataset == 'small':
+                    output_folder = 'SMALL/'
+                    label_dir = opt.data_valgt_small
                     norm_size = False
 
                 im_dir = opt.val_folder + output_folder + '*.png'

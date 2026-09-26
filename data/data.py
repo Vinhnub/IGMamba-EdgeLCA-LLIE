@@ -3,6 +3,7 @@ from data.LOLdataset import *
 from data.eval_sets import *
 from data.SICE_blur_SID import *
 from data.fivek import *
+from data.smalldataset import *
 
 def transform1(size=256):
     return Compose([
@@ -51,3 +52,9 @@ def get_fivek_training_set(data_dir,size):
 
 def get_fivek_eval_set(data_dir):
     return SICEDatasetFromFolderEval(data_dir, transform=transform2())
+
+def get_small_training_set(data_dir, size):
+    return SmallDatasetFromFolder(data_dir, transform=transform1(size))
+
+def get_small_eval_set(data_dir):
+    return SmallDatasetFromFolderEval(data_dir, transform=transform2())
