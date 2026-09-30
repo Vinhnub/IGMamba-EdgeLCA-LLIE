@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.backends.cudnn as cudnn
 import numpy as np
 from torch.utils.data import DataLoader
-from net.CIDNet_base_w_edge_tiny import CIDNet
+from net.CIDNet_base import CIDNet
 from data.options import option
 from measure import metrics
 from eval import eval

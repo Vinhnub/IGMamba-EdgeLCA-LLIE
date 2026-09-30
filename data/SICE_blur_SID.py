@@ -55,41 +55,48 @@ class SIDDatasetFromFolder(data.Dataset):
         super(SIDDatasetFromFolder, self).__init__()
         self.data_dir = data_dir
         self.transform = transform
+        self.image_pairs = []
+        
+        # Dời listdir lên đây: Quét toàn bộ thư mục 1 lần khi khởi tạo
+        for i in range(234):
+            fill_index = str(i + 1).zfill(5)
+            folder_short = join(self.data_dir + '/short', fill_index)
+            folder_long = join(self.data_dir + '/long', fill_index)
+            
+            if os.path.exists(folder_short) and os.path.exists(folder_long):
+                short_files = [join(folder_short, x) for x in listdir(folder_short) if is_image_file(x)]
+                long_files = [join(folder_long, x) for x in listdir(folder_long) if is_image_file(x)]
+                
+                if len(short_files) > 0 and len(long_files) > 0:
+                    for short_file in short_files:
+                        self.image_pairs.append((short_file, long_files[0]))
 
     def __getitem__(self, index):
-        while True:
-            seed = random.randint(1, 1000000)
-            random.seed(seed) 
-            index = random.randint(0, 233)
-            fill_index = str(index+1).zfill(5)
-            folder = join(self.data_dir+'/short', fill_index)
-            folder2 = join(self.data_dir+'/long', fill_index)
-            if os.path.exists(folder): 
-                data_filenames = [join(folder, x) for x in listdir(folder) if is_image_file(x)]
-                data_filenames2 = [join(folder2, x) for x in listdir(folder2) if is_image_file(x)]
-                num = len(data_filenames)
-                break
-            else:
-                continue
-        index1 = random.randint(1,num)
+        # Index sẽ được DataLoader tự động lấy tuỳ theo shuffle
+        # Không còn while True hay os.listdir bên trong __getitem__ nữa
+        short_path, long_path = self.image_pairs[index]
 
-
-        im1 = load_img(data_filenames[index1-1])
-        im2 = load_img(data_filenames2[0])
-        _, file1 = os.path.split(data_filenames[index1-1])
-        _, file2 = os.path.split(data_filenames2[0])
-        seed = np.random.randint(random.randint(1, 1000000)) # make a seed with numpy generator 
+        im1 = load_img(short_path)
+        im2 = load_img(long_path)
+        
+        _, file1 = os.path.split(short_path)
+        _, file2 = os.path.split(long_path)
+        
         if self.transform:
-            random.seed(seed) # apply this seed to img tranfsorms
-            torch.manual_seed(seed) # needed for torchvision 0.7
+            seed = np.random.randint(1, 1000000)
+            random.seed(seed) 
+            torch.manual_seed(seed) 
             im1 = self.transform(im1)
+            
             random.seed(seed)
             torch.manual_seed(seed)         
             im2 = self.transform(im2)
+            
         return im1, im2, file1, file2
 
     def __len__(self):
-        return 2099
+        # Đếm chính xác số lượng ảnh thay vì hardcode 2099
+        return len(self.image_pairs)
     
     
     

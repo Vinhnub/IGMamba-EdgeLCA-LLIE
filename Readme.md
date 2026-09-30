@@ -247,7 +247,7 @@ python train.py --dataset lolv2_real --cropSize 256 --batchSize 4 --lr 1e-4 --nE
 
 Use PyTorch's `torchrun` to scale training across multiple GPUs (e.g., 2 GPUs):
 ```bash
-torchrun --nproc_per_node=2 train_ddp.py --dataset lol_v1 --batchSize 4 --cropSize 256 --lr 2e-4 --nEpochs 1000
+python -m torch.distributed.run --nproc_per_node=2 train_ddp.py --dataset lolv2_real
 ```
 
 ### 5.3. Key Training Arguments ([`data/options.py`](data/options.py))

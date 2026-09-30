@@ -6,6 +6,7 @@ from net.HVI_transform import RGB_HVI
 from net.transformer_utils import NormDownsample, NormUpsample
 from net.Edge_LCA import Edge_Guided_I_LCA
 from net.IG_Mamba import IG_Mamba
+from net.standard_mamba import StandardMamba
 from net.edge_filter import EdgeExtractor
 
 
