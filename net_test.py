@@ -1,7 +1,7 @@
 from thop import profile
 import torch
 import time
-from net.CIDNet_base_w_edge_tiny import CIDNet
+from net.CIDNet_Mamba_separable_learning_edge import CIDNet
 
 
 model = CIDNet().to('cuda')  

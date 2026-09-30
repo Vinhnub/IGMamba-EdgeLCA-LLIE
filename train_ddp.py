@@ -13,7 +13,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 
-from net.CIDNet_Mamba_separable_learning import CIDNet
+from net.CIDNet_Mamba_separable_learning_edge import CIDNet
 from data.options import option
 from measure import metrics
 from eval import eval

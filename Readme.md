@@ -137,7 +137,7 @@ Select the command corresponding to your system's CUDA version:
 
 - **For CUDA 12.x / 12.8:**
   ```bash
-  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+  pip install torch==2.9.0 torchvision==0.24.0 torchaudio==2.9.0 --index-url https://download.pytorch.org/whl/cu128
   ```
 - **For CUDA 11.8:**
   ```bash

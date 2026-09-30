@@ -11,8 +11,8 @@ def _str2bool(v):
 def option():
     # Training settings
     parser = argparse.ArgumentParser(description='CIDNet')
-    parser.add_argument('--batchSize', type=int, default=1, help='training batch size')
-    parser.add_argument('--cropSize', type=int, default=8, help='image crop size (patch size)')
+    parser.add_argument('--batchSize', type=int, default=4, help='training batch size')
+    parser.add_argument('--cropSize', type=int, default=256, help='image crop size (patch size)')
     parser.add_argument('--nEpochs', type=int, default=1000, help='number of epochs to train for end')
     parser.add_argument('--start_epoch', type=int, default=0, help='number of epochs to start, >0 is retrained a pre-trained pth')
     parser.add_argument('--snapshots', type=int, default=5, help='Snapshots for save checkpoints pth')
@@ -70,7 +70,7 @@ def option():
     parser.add_argument('--D_weight',  type=float, default=0.5)
     parser.add_argument('--E_weight',  type=float, default=50.0)
     parser.add_argument('--P_weight',  type=float, default=0.01)
-    parser.add_argument('--LSGD_weight', type=float, default=0.0)
+    parser.add_argument('--LSGD_weight', type=float, default=1.0)
     parser.add_argument('--dark_focus', type=_str2bool, default=True, help='Enable dark focus for both IG_Mamba and LSGD loss (False focuses on bright regions)')
     parser.add_argument('--number_warmup_epoch', '--number_warmup_epochs', type=int, default=0, help='Number of warmup epochs for loss weights where weights are 0')
     parser.add_argument('--number_transition_epoch', '--number_transition_epochs', type=int, default=1, help='Number of transition epochs for loss weights to linearly scale from 0 to 1')
