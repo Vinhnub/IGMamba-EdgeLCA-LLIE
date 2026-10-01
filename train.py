@@ -408,8 +408,5 @@ if __name__ == '__main__':
             print("===> Avg.LPIPS (GT): {:.4f} ".format(avg_lpips))
             with open(f"./results/training/metrics{now}.md", "a") as f:
                 f.write(f"| {epoch} | {detailed_losses['total']:.4f} | {detailed_losses['l1']:.4f} | {detailed_losses['l2']:.4f} | {detailed_losses['d']:.4f} | {detailed_losses['p']:.4f} | {detailed_losses['e']:.4f} | {detailed_losses['lsgd']:.4f} | {detailed_losses['exp']:.4f} | {avg_psnr:.4f} | {avg_ssim:.4f} | {avg_lpips:.4f} | GT Mean |\n") 
-        else:
-            with open(f"./results/training/metrics{now}.md", "a") as f:
-                f.write(f"| {epoch} | {detailed_losses['total']:.4f} | {detailed_losses['l1']:.4f} | {detailed_losses['l2']:.4f} | {detailed_losses['d']:.4f} | {detailed_losses['p']:.4f} | {detailed_losses['e']:.4f} | {detailed_losses['lsgd']:.4f} | {detailed_losses['exp']:.4f} | - | - | - | - |\n")
 
         torch.cuda.empty_cache()
