@@ -171,3 +171,10 @@ weights_and_results
 dataset
 weights_cidnet
 output_other_model
+visualization
+visualize_layers_w_dark_focus
+visualize_layers_wo_darkfocus
+output_hvi_low
+docs
+visualize_mamba_scans.py
+visualize_model_layers.py

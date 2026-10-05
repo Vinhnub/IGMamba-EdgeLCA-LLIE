@@ -127,13 +127,13 @@ if __name__ == '__main__':
     mea = mea_parser.parse_args()
 
     if mea.lol:
-        im_dir = './output/LOLv1/*.png'
+        im_dir = './output_other_model/RetinexMamba/LOLv1/*.png'
         label_dir = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/dataset/LOL/LOLv1/test/high/'
     if mea.lol_v2_real:
-        im_dir = './output/LOLv2_real/*.png'
+        im_dir = './output_other_model/RetinexMamba/LOLv2_real/*.png'
         label_dir = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/dataset/LOL/LOLv2-real/Test/GT/'
     if mea.lol_v2_syn:
-        im_dir = './output/LOLv2_syn/*.png'
+        im_dir = './output_other_model/RetinexMamba/LOLv2_syn/*.png'
         label_dir = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/dataset/LOL/LOLv2-synthetic/Test/GT/'
     if mea.SICE_grad:
         im_dir = './output/SICE_grad/*.png'

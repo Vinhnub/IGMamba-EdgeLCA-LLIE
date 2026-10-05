@@ -55,19 +55,19 @@ if __name__ == '__main__':
     ep = eval_parser.parse_args()
 
     if ep.DICM:
-        im_dir = './output/DICM/*.jpg'
+        im_dir = './output_other_model/RetinexMamba/DICM/*.png'
 
     elif ep.LIME:
-        im_dir = './output/LIME/*.bmp'
+        im_dir = './output_other_model/RetinexMamba/LIME/*.png'
 
     elif ep.MEF:
-        im_dir = './output/MEF/*.png'
+        im_dir = './output_other_model/RetinexMamba/MEF/*.png'
 
     elif ep.NPE:
-        im_dir = './output/NPE/*.jpg'
+        im_dir = './output_other_model/RetinexMamba/NPE/*.png'
 
     elif ep.VV:
-        im_dir = './output/VV/*.jpg'
+        im_dir = './output_other_model/RetinexMamba/VV/*.png'
 
 
     avg_niqe, avg_brisque = metrics(im_dir)

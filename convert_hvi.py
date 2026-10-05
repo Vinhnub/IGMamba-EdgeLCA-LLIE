@@ -100,7 +100,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Convert RGB image to HVI color space with merged HV channels and I channel.')
     parser.add_argument('--input', type=str, required=True, help='Path to input image')
-    parser.add_argument('--output_dir', type=str, default='output_hvi', help='Output directory')
+    parser.add_argument('--output_dir', type=str, default='output_hvi_low', help='Output directory')
     parser.add_argument('--save_separate', action='store_true', help='Also save separate H.png and V.png')
     
     args = parser.parse_args()
