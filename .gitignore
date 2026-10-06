@@ -178,3 +178,8 @@ output_hvi_low
 docs
 visualize_mamba_scans.py
 visualize_model_layers.py
+analyze_mamba_maps.py
+draw_learning_curve.py
+test_cidnet_ig.py
+test_dark_focus_sync.py
+test_ig_mamba.py
