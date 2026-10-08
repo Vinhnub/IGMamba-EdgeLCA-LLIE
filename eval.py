@@ -6,7 +6,7 @@ from data.data import *
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from loss.losses import *
-from net.CIDNet_Mamba_separable_learning_edge import CIDNet
+from net.CIDNet_Mamba_separable_learning import CIDNet
 
 
 def eval(model, testing_data_loader, model_path, output_folder,norm_size=True,LOL=False,v2=False,unpaired=False,alpha=1.0,gamma=1.0):
@@ -92,12 +92,12 @@ if __name__ == '__main__':
     num_workers = 1
     alpha = None
     if ep.lol:
-        eval_data = DataLoader(dataset=get_eval_set(r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\dataset\LOL\LOLv1\test\low"), num_workers=num_workers, batch_size=1, shuffle=False)
+        eval_data = DataLoader(dataset=get_eval_set(r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\dataset\LOL\LOLv1\test\low_1"), num_workers=num_workers, batch_size=1, shuffle=False)
         output_folder = './output/LOLv1/'
         if ep.perc:
             weight_path = './weights/LOLv1/w_perc.pth'
         else:
-            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_cidnet\LOLv1\w_perc.pth'
+            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv1\wo-EdgeLCA\Denoise\w-Loss\epoch_490_best_PSNR.pth'
         
             
     elif ep.lol_v2_real:

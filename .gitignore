@@ -183,3 +183,5 @@ draw_learning_curve.py
 test_cidnet_ig.py
 test_dark_focus_sync.py
 test_ig_mamba.py
+generate_comparison_single_row.py
+eval_image_pair.py

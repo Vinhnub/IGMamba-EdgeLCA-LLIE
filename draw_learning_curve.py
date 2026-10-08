@@ -23,6 +23,25 @@ plt.rcParams['axes.edgecolor'] = '#cccccc'
 plt.rcParams['axes.linewidth'] = 0.8
 
 
+def smooth_series(values: np.ndarray, weight: float = 0.85) -> np.ndarray:
+    """
+    Làm mượt chuỗi dữ liệu theo phương pháp Exponential Moving Average (EMA) 
+    có hiệu chỉnh độ lệch bước đầu (TensorBoard style debiasing).
+    - weight = 0.0: giữ nguyên gốc, không làm mượt.
+    - weight trong khoảng 0.7 - 0.9: làm mượt mà, loại bỏ hiện tượng răng cưa/nhiễu cực tốt.
+    """
+    if len(values) <= 1 or weight <= 0.0:
+        return np.array(values, dtype=float).copy()
+    
+    smoothed = np.empty_like(values, dtype=float)
+    last = 0.0
+    for i, val in enumerate(values):
+        last = last * weight + (1.0 - weight) * val
+        debias = 1.0 - (weight ** (i + 1))
+        smoothed[i] = last / debias
+    return smoothed
+
+
 def canonicalize_col_name(name: str) -> str:
     """Chuẩn hóa tên cột từ file markdown."""
     clean = name.strip().lower()
@@ -257,11 +276,15 @@ def print_summary_table(
 def plot_learning_curves(
     data: Dict[int, Dict[str, float]], 
     save_dir: str,
-    prefix: str = "learning_curve"
+    prefix: str = "learning_curve",
+    smooth_weight: float = 0.85,
+    show_raw: bool = True,
+    alpha_raw: float = 0.22
 ):
     """
     Vẽ 3 metrics (PSNR, SSIM, LPIPS) chung vào 1 biểu đồ duy nhất (sử dụng 3 trục Y),
     thiết kế chống chồng lấn hoàn toàn (Non-overlapping layout) và lưu thành file .jpg.
+    Hỗ trợ làm mờ đường dữ liệu gốc và làm mượt đường xu hướng (EMA smoothing).
     """
     os.makedirs(save_dir, exist_ok=True)
     
@@ -286,7 +309,7 @@ def plot_learning_curves(
     c_ssim = "#2ca02c"     # Xanh lá cây
     c_lpips = "#d62728"    # Đỏ tươi
 
-    # Tính toán chỉ số tốt nhất của từng metric
+    # Tính toán chỉ số tốt nhất của từng metric (dựa trên checkpoint thực tế)
     best_p_ep, best_p_val = None, None
     best_s_ep, best_s_val = None, None
     best_l_ep, best_l_val = None, None
@@ -339,13 +362,22 @@ def plot_learning_curves(
     ax1.set_xlabel("Epochs", fontsize=12, fontweight='bold', labelpad=8)
     if len(val_psnr) > 0:
         ax1.set_ylabel("PSNR (dB) ↑", color=c_psnr, fontsize=12, fontweight='bold')
-        line1, = ax1.plot(ep_psnr, val_psnr, color=c_psnr, linewidth=2.2, label="PSNR")
+        
+        # Làm mờ đường gốc và vẽ đường mượt
+        if smooth_weight > 0.0 and len(val_psnr) > 1:
+            val_psnr_smooth = smooth_series(val_psnr, weight=smooth_weight)
+            if show_raw:
+                ax1.plot(ep_psnr, val_psnr, color=c_psnr, linewidth=1.1, alpha=alpha_raw, zorder=2)
+            line1, = ax1.plot(ep_psnr, val_psnr_smooth, color=c_psnr, linewidth=2.2, alpha=1.0, zorder=3, label="PSNR")
+        else:
+            line1, = ax1.plot(ep_psnr, val_psnr, color=c_psnr, linewidth=2.2, zorder=3, label="PSNR")
+
         ax1.tick_params(axis='y', labelcolor=c_psnr, labelsize=10)
         add_headroom(ax1, val_psnr, pad_top=0.25, pad_bot=0.08)
         lines.append(line1)
         labels.append(f"PSNR (Best: {best_p_val:.2f} dB @ Ep {best_p_ep})")
 
-        # Đánh dấu sao tại điểm Max PSNR
+        # Đánh dấu sao tại điểm Max PSNR (giữ nguyên checkpoint thực tế)
         ax1.scatter([best_p_ep], [best_p_val], color=c_psnr, s=150, marker='*', zorder=6,
                     edgecolors='black', linewidths=0.6)
         ax1.annotate(f"★ {best_p_val:.2f} dB (Ep {best_p_ep})",
@@ -360,7 +392,15 @@ def plot_learning_curves(
     if len(val_ssim) > 0:
         ax2 = ax1.twinx()
         ax2.set_ylabel("SSIM ↑", color=c_ssim, fontsize=12, fontweight='bold')
-        line2, = ax2.plot(ep_ssim, val_ssim, color=c_ssim, linewidth=2.0, linestyle="--", label="SSIM")
+        
+        if smooth_weight > 0.0 and len(val_ssim) > 1:
+            val_ssim_smooth = smooth_series(val_ssim, weight=smooth_weight)
+            if show_raw:
+                ax2.plot(ep_ssim, val_ssim, color=c_ssim, linewidth=1.0, linestyle="--", alpha=alpha_raw, zorder=2)
+            line2, = ax2.plot(ep_ssim, val_ssim_smooth, color=c_ssim, linewidth=2.0, linestyle="--", alpha=1.0, zorder=3, label="SSIM")
+        else:
+            line2, = ax2.plot(ep_ssim, val_ssim, color=c_ssim, linewidth=2.0, linestyle="--", zorder=3, label="SSIM")
+
         ax2.tick_params(axis='y', labelcolor=c_ssim, labelsize=10)
         add_headroom(ax2, val_ssim, pad_top=0.25, pad_bot=0.08)
         lines.append(line2)
@@ -380,7 +420,15 @@ def plot_learning_curves(
         ax3 = ax1.twinx()
         ax3.spines['right'].set_position(('outward', 65))
         ax3.set_ylabel("LPIPS ↓", color=c_lpips, fontsize=12, fontweight='bold')
-        line3, = ax3.plot(ep_lpips, val_lpips, color=c_lpips, linewidth=2.0, linestyle="-.", label="LPIPS")
+        
+        if smooth_weight > 0.0 and len(val_lpips) > 1:
+            val_lpips_smooth = smooth_series(val_lpips, weight=smooth_weight)
+            if show_raw:
+                ax3.plot(ep_lpips, val_lpips, color=c_lpips, linewidth=1.0, linestyle="-.", alpha=alpha_raw, zorder=2)
+            line3, = ax3.plot(ep_lpips, val_lpips_smooth, color=c_lpips, linewidth=2.0, linestyle="-.", alpha=1.0, zorder=3, label="LPIPS")
+        else:
+            line3, = ax3.plot(ep_lpips, val_lpips, color=c_lpips, linewidth=2.0, linestyle="-.", zorder=3, label="LPIPS")
+
         ax3.tick_params(axis='y', labelcolor=c_lpips, labelsize=10)
         add_headroom(ax3, val_lpips, pad_top=0.25, pad_bot=0.08)
         lines.append(line3)
@@ -416,7 +464,14 @@ def plot_learning_curves(
     if len(loss_vals) > 0:
         fig_loss, ax_loss = plt.subplots(figsize=(10, 5.5), dpi=200)
         ep_loss, val_loss = extract_series(data, "total_loss")
-        ax_loss.plot(ep_loss, val_loss, color="#d62728", linewidth=2.2, label="Total Loss")
+        
+        if smooth_weight > 0.0 and len(val_loss) > 1:
+            val_loss_smooth = smooth_series(val_loss, weight=smooth_weight)
+            if show_raw:
+                ax_loss.plot(ep_loss, val_loss, color="#d62728", linewidth=1.0, alpha=alpha_raw)
+            ax_loss.plot(ep_loss, val_loss_smooth, color="#d62728", linewidth=2.2, label="Total Loss")
+        else:
+            ax_loss.plot(ep_loss, val_loss, color="#d62728", linewidth=2.2, label="Total Loss")
         
         min_idx = np.argmin(val_loss)
         ax_loss.scatter([ep_loss[min_idx]], [val_loss[min_idx]], color="#d62728", s=60, zorder=5)
@@ -435,7 +490,13 @@ def plot_learning_curves(
         for k, name, c, ls in comp_configs:
             ep_c, val_c = extract_series(data, k)
             if len(val_c) > 0 and np.any(val_c > 0):
-                ax_loss.plot(ep_c, val_c, label=name, color=c, linestyle=ls, linewidth=1.5, alpha=0.8)
+                if smooth_weight > 0.0 and len(val_c) > 1:
+                    val_c_smooth = smooth_series(val_c, weight=smooth_weight)
+                    if show_raw:
+                        ax_loss.plot(ep_c, val_c, color=c, linestyle=ls, linewidth=0.9, alpha=alpha_raw)
+                    ax_loss.plot(ep_c, val_c_smooth, label=name, color=c, linestyle=ls, linewidth=1.6, alpha=0.9)
+                else:
+                    ax_loss.plot(ep_c, val_c, label=name, color=c, linestyle=ls, linewidth=1.5, alpha=0.8)
 
         ax_loss.set_title("Training Loss Curve", fontsize=13, fontweight='bold', pad=10)
         ax_loss.set_xlabel("Epochs", fontsize=11, fontweight='bold')
@@ -472,6 +533,23 @@ def main():
         default=None,
         help="Output directory to save plots (default: directory of the first log file)"
     )
+    parser.add_argument(
+        "--smooth", 
+        type=float, 
+        default=0.85,
+        help="Hệ số làm mượt EMA (từ 0.0 đến 0.99, mặc định: 0.85). Đặt 0 để tắt làm mượt."
+    )
+    parser.add_argument(
+        "--hide-raw", 
+        action="store_true",
+        help="Ẩn đường dữ liệu gốc mờ ở phía sau, chỉ hiển thị đường mượt."
+    )
+    parser.add_argument(
+        "--alpha-raw", 
+        type=float, 
+        default=0.22,
+        help="Độ mờ (alpha) của đường dữ liệu gốc phía sau (mặc định: 0.22)."
+    )
     args = parser.parse_args()
 
     # File log mẫu mặc định nếu không truyền qua CLI
@@ -506,7 +584,14 @@ def main():
         out_dir = os.path.dirname(os.path.abspath(valid_files[0]))
 
     print(f"[2/3] Rendering and saving Learning Curve (.jpg) to: {out_dir}")
-    plot_learning_curves(data, save_dir=out_dir)
+    print(f"      - EMA Smooth weight: {args.smooth} | Show raw faint line: {not args.hide_raw} (alpha={args.alpha_raw})")
+    plot_learning_curves(
+        data, 
+        save_dir=out_dir,
+        smooth_weight=args.smooth,
+        show_raw=not args.hide_raw,
+        alpha_raw=args.alpha_raw
+    )
 
     print(f"[3/3] Training statistics summary:")
     print_summary_table(data, metadata, valid_files)

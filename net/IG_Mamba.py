@@ -412,8 +412,6 @@ class IG_Attention(nn.Module):
         i_c = rearrange(i_c, "(b k l) s -> b k s l", b=B, k=self.K, l=L)
 
         # Cơ chế Dark Focus:
-        # Khi dark_focus=True: Vùng tối làm tăng Delta (mở rộng bước lấy mẫu để tập trung học và phục hồi),
-        # vùng sáng làm giảm Delta (hãm lại để bảo tồn nguyên vẹn vùng sáng, tránh cháy sáng over-exposure).
         if self.dark_focus:
             i_delta = -i_delta
             i_c = -i_c
