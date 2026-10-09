@@ -153,12 +153,68 @@ class CameraStreamManager:
         self.is_dirty = True
         if source == "camera":
             self._init_source()
+        elif source == "client_camera":
+            if self.cap:
+                self.cap.release()
+                self.cap = None
         else:
             if self.cap:
                 self.cap.release()
                 self.cap = None
             self._load_current_sample()
             self.read_processed_frame(force_recompute=True)
+
+    def process_client_frame(self, raw_frame: np.ndarray) -> np.ndarray:
+        """
+        Nhận và xử lý khung hình thời gian thực được gửi trực tiếp từ Client Webcam (trình duyệt).
+        Đảm bảo tự động điều chỉnh về chuẩn 400x600 và chạy suy luận tăng sáng.
+        """
+        self.source_type = "client_camera"
+        now_ts = time.perf_counter()
+        dt = now_ts - self.last_frame_ts
+        self.last_frame_ts = now_ts
+
+        # Tự động chuẩn hóa về kích thước 400x600 (height=400, width=600)
+        if raw_frame.shape[0] != 400 or raw_frame.shape[1] != 600:
+            raw_frame = cv2.resize(raw_frame, (600, 400), interpolation=cv2.INTER_AREA)
+
+        self.latest_raw_frame = raw_frame
+
+        enhanced_frame, telemetry = llie_engine.process_frame(
+            raw_frame,
+            gamma=self.gamma,
+            alpha_s=self.alpha_s,
+            alpha_i=self.alpha_i,
+            view_mode="enhanced",
+            is_realtime_stream=True
+        )
+        self.latest_enhanced_frame = enhanced_frame
+
+        if 0.001 < dt < 1.0:
+            instant_fps = 1.0 / dt
+            self.current_fps = round(0.85 * self.current_fps + 0.15 * instant_fps, 1)
+        telemetry["fps"] = self.current_fps
+        self.latest_telemetry = telemetry
+
+        luminance_analyzer.update_from_frame(enhanced_frame)
+
+        # Chèn timestamp OSD hiển thị thời gian
+        now = datetime.datetime.now()
+        weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+        ts_text = f"{now.year}年{now.month:02d}月{now.day:02d}日  {weekdays[now.weekday()]}  {now.hour:02d}:{now.minute:02d}:{now.second:02d}"
+        display_frame = enhanced_frame.copy()
+        cv2.putText(display_frame, ts_text, (30, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Pre-encode vào cache JPEG
+        ret_raw, raw_jpg = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if ret_raw:
+            self.cached_raw_jpeg = raw_jpg.tobytes()
+        ret_enh, enh_jpg = cv2.imencode('.jpg', display_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if ret_enh:
+            self.cached_enhanced_jpeg = enh_jpg.tobytes()
+
+        self.cached_display_frame = display_frame
+        return display_frame
 
     def set_parameters(self, gamma: float = None, alpha_s: float = None, alpha_i: float = None, view_mode: str = None):
         changed = False
@@ -278,7 +334,7 @@ class CameraStreamManager:
 
     def get_raw_jpeg(self) -> bytes:
         """Lấy ảnh JPEG của khung hình gốc (Input)."""
-        if self.source_type == "camera":
+        if self.source_type in ["camera", "client_camera"]:
             frame = self.latest_raw_frame
             if frame is None:
                 frame = self._create_synthetic_lowlight_frame()
@@ -291,7 +347,7 @@ class CameraStreamManager:
 
     def get_enhanced_jpeg(self) -> bytes:
         """Lấy ảnh JPEG của khung hình tăng sáng (Output)."""
-        if self.source_type == "camera":
+        if self.source_type in ["camera", "client_camera"]:
             frame = self.latest_enhanced_frame
             if frame is None:
                 frame = self._create_synthetic_lowlight_frame()
@@ -318,6 +374,12 @@ class CameraStreamManager:
                 proc_time = time.perf_counter() - t_cycle_start
                 sleep_time = max(0.001, (1.0 / self.target_fps) - proc_time)
                 time.sleep(sleep_time)
+            elif self.source_type == "client_camera":
+                # Đối với client_camera, frame được cập nhật liên tục từ WebSocket/HTTP
+                if self.cached_enhanced_jpeg:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + self.cached_enhanced_jpeg + b'\r\n')
+                time.sleep(1.0 / self.target_fps)
             else:
                 # Chế độ offline: stream ảnh cached với tần số nhẹ để tránh ngốn CPU/GPU
                 if self.cached_enhanced_jpeg is None or self.is_dirty:

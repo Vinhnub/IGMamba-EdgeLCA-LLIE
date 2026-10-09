@@ -45,13 +45,13 @@ async def video_feed():
 @app.get("/offline_input")
 async def get_offline_input():
     """Lấy ảnh Input (gốc thiếu sáng) cho chế độ offline."""
-    img_bytes = camera_manager.get_raw_jpeg()
+    img_bytes = await asyncio.to_thread(camera_manager.get_raw_jpeg)
     return Response(content=img_bytes, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
 
 @app.get("/offline_output")
 async def get_offline_output():
     """Lấy ảnh Output (đã tăng sáng) cho chế độ offline."""
-    img_bytes = camera_manager.get_enhanced_jpeg()
+    img_bytes = await asyncio.to_thread(camera_manager.get_enhanced_jpeg)
     return Response(content=img_bytes, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
 
 @app.websocket("/ws/telemetry")
@@ -65,7 +65,7 @@ async def websocket_telemetry(websocket: WebSocket):
     try:
         while True:
             # 1. Đọc thông số phần cứng từ Jetson Orin Nano
-            hw_metrics = jetson_monitor.get_metrics()
+            hw_metrics = await asyncio.to_thread(jetson_monitor.get_metrics)
             
             # 2. Lấy thông số từ engine tăng sáng & camera
             prep_ms = camera_manager.latest_telemetry.get("prep_time_ms", llie_engine.last_prep_time)
@@ -78,14 +78,14 @@ async def websocket_telemetry(websocket: WebSocket):
             # 3. Lấy dữ liệu đồ thị sóng Luminance Profile
             waveform_data = luminance_analyzer.get_waveform_points()
             
-            is_cam_mode = (camera_manager.source_type == "camera")
+            is_cam_mode = (camera_manager.source_type in ["camera", "client_camera"])
             
             # Lấy dung lượng VRAM thực tế dùng để nạp mô hình
             model_mem = llie_engine.get_model_memory_usage()
             
             # Gom gói dữ liệu
             packet = {
-                # Thông số phần cứng deploy Jetson Orin Nano
+                # Thông số phần hardware deploy Jetson Orin Nano
                 "data_preprocessing_ms": prep_ms,
                 "inference_ms": infer_ms,
                 "fps": fps_val,
@@ -125,6 +125,59 @@ async def websocket_telemetry(websocket: WebSocket):
     except Exception as e:
         print(f"[WebSocket Error] {e}")
 
+@app.websocket("/ws/client_camera")
+async def websocket_client_camera(websocket: WebSocket):
+    """
+    Nhận khung hình từ Client Webcam (trình duyệt) qua WebSocket,
+    xử lý tăng sáng thời gian thực (400x600) và gửi lại frame đã tăng sáng cho Client.
+    """
+    await websocket.accept()
+    camera_manager.source_type = "client_camera"
+    try:
+        while True:
+            # Nhận binary JPEG từ client canvas
+            data = await websocket.receive_bytes()
+            if not data:
+                continue
+            
+            nparr = np.frombuffer(data, np.uint8)
+            raw_frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if raw_frame is None:
+                continue
+
+            # Xử lý tăng sáng không khóa luồng event loop
+            enhanced_frame = await asyncio.to_thread(camera_manager.process_client_frame, raw_frame)
+
+            # Mã hóa JPEG chất lượng 85 gửi ngược lại cho client
+            ret, jpeg = cv2.imencode('.jpg', enhanced_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if ret:
+                await websocket.send_bytes(jpeg.tobytes())
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"[Client Camera WebSocket Error] {e}")
+    finally:
+        if camera_manager.source_type == "client_camera":
+            camera_manager.source_type = "sample"
+            camera_manager.is_dirty = True
+
+@app.post("/api/client_frame")
+async def post_client_frame(file: UploadFile = File(...)):
+    """API fallback cho Client Webcam gửi từng frame qua HTTP POST."""
+    try:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        raw_frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if raw_frame is None:
+            return Response(status_code=400)
+        enhanced_frame = await asyncio.to_thread(camera_manager.process_client_frame, raw_frame)
+        ret, jpeg = cv2.imencode('.jpg', enhanced_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if ret:
+            return Response(content=jpeg.tobytes(), media_type="image/jpeg")
+        return Response(status_code=500)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.get("/api/weights")
 async def get_weights():
     """Lấy danh sách tất cả các weights có trong hệ thống và weight hiện tại."""
@@ -139,7 +192,7 @@ async def set_weight(weight_path: str = Form(...)):
     """Chọn và nạp trọng số mô hình mới."""
     success = llie_engine.set_weight(weight_path)
     # Re-evaluate frame with new weight if offline
-    if camera_manager.source_type != "camera":
+    if camera_manager.source_type not in ["camera", "client_camera"]:
         camera_manager.is_dirty = True
         camera_manager.read_processed_frame(force_recompute=True)
     return {
@@ -150,7 +203,9 @@ async def set_weight(weight_path: str = Form(...)):
 @app.post("/api/source")
 async def change_source(action: str = Form(...)):
     """Chuyển nguồn camera / ảnh mẫu."""
-    if action == "camera":
+    if action in ["camera", "client_camera"]:
+        camera_manager.switch_source("client_camera")
+    elif action == "host_camera":
         camera_manager.switch_source("camera")
     elif action == "sample":
         camera_manager.switch_source("sample")
@@ -163,7 +218,7 @@ async def change_source(action: str = Form(...)):
         "status": "success",
         "source_type": camera_manager.source_type,
         "sample_index": camera_manager.current_sample_idx,
-        "is_camera_active": (camera_manager.source_type == "camera")
+        "is_camera_active": (camera_manager.source_type in ["camera", "client_camera"])
     }
 
 @app.post("/api/upload_image")

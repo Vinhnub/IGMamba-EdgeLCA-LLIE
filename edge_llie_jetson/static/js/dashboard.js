@@ -10,6 +10,13 @@ let ctx = null;
 let currentActiveWeight = "";
 let currentSourceType = "sample";
 
+// Client Camera Webcam State
+let clientMediaStream = null;
+let clientCameraWs = null;
+let isClientCameraActive = false;
+let clientFrameSending = false;
+let clientFpsTracker = { lastTime: performance.now(), frames: 0, fps: 30.0 };
+
 // Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
     initTheme();
@@ -421,10 +428,148 @@ function hideLoading() {
     if (overlay) overlay.style.display = "none";
 }
 
+// ==========================================
+// Client Webcam Streaming Engine (WebRTC + WebSocket)
+// ==========================================
+async function startClientCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Trình duyệt không hỗ trợ getUserMedia hoặc bị chặn do không dùng HTTPS/localhost.");
+    }
+
+    const videoEl = document.getElementById("clientWebcamVideo");
+    const canvasEl = document.getElementById("clientWebcamCanvas");
+    if (!videoEl || !canvasEl) {
+        throw new Error("Không tìm thấy phần tử video/canvas để thu webcam.");
+    }
+
+    // Yêu cầu camera client, tự động cấu hình kích thước 600x400
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            width: { ideal: 600 },
+            height: { ideal: 400 },
+            frameRate: { ideal: 30, max: 30 }
+        },
+        audio: false
+    });
+
+    clientMediaStream = stream;
+    videoEl.srcObject = stream;
+    await videoEl.play();
+
+    // Kết nối WebSocket chuyên dụng gửi nhận frame client
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws/client_camera`;
+
+    return new Promise((resolve, reject) => {
+        clientCameraWs = new WebSocket(wsUrl);
+        clientCameraWs.binaryType = "blob";
+
+        clientCameraWs.onopen = () => {
+            isClientCameraActive = true;
+            clientFpsTracker.lastTime = performance.now();
+            clientFpsTracker.frames = 0;
+            sendClientWebcamFrame();
+            resolve();
+        };
+
+        clientCameraWs.onmessage = (event) => {
+            const blob = event.data;
+            if (blob instanceof Blob) {
+                const url = URL.createObjectURL(blob);
+                const liveImg = document.getElementById("liveStream");
+                if (liveImg) {
+                    const oldUrl = liveImg.src;
+                    liveImg.src = url;
+                    if (oldUrl && oldUrl.startsWith("blob:")) {
+                        URL.revokeObjectURL(oldUrl);
+                    }
+                }
+
+                // Cập nhật FPS đo từ client
+                clientFpsTracker.frames++;
+                const now = performance.now();
+                if (now - clientFpsTracker.lastTime >= 1000) {
+                    clientFpsTracker.fps = (clientFpsTracker.frames * 1000 / (now - clientFpsTracker.lastTime));
+                    clientFpsTracker.frames = 0;
+                    clientFpsTracker.lastTime = now;
+                    const fpsEl = document.getElementById("valLiveFps");
+                    if (fpsEl) fpsEl.textContent = clientFpsTracker.fps.toFixed(1);
+                }
+            }
+            clientFrameSending = false;
+            // Gửi frame kế tiếp sau khi đã nhận xong frame trước (tối ưu hóa băng thông & độ trễ)
+            if (isClientCameraActive) {
+                requestAnimationFrame(sendClientWebcamFrame);
+            }
+        };
+
+        clientCameraWs.onerror = (err) => {
+            console.error("Client Camera WebSocket error:", err);
+            reject(err);
+        };
+
+        clientCameraWs.onclose = () => {
+            isClientCameraActive = false;
+        };
+    });
+}
+
+function sendClientWebcamFrame() {
+    if (!isClientCameraActive || clientFrameSending) return;
+    if (!clientCameraWs || clientCameraWs.readyState !== WebSocket.OPEN) return;
+
+    const videoEl = document.getElementById("clientWebcamVideo");
+    const canvasEl = document.getElementById("clientWebcamCanvas");
+    if (!videoEl || !canvasEl) return;
+    if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) {
+        requestAnimationFrame(sendClientWebcamFrame);
+        return;
+    }
+
+    const ctx = canvasEl.getContext("2d");
+    // Co giãn khung hình về đúng 600x400 ngay tại Client Canvas
+    ctx.drawImage(videoEl, 0, 0, 600, 400);
+
+    clientFrameSending = true;
+    canvasEl.toBlob((blob) => {
+        if (blob && clientCameraWs && clientCameraWs.readyState === WebSocket.OPEN) {
+            clientCameraWs.send(blob);
+        } else {
+            clientFrameSending = false;
+        }
+    }, "image/jpeg", 0.85);
+}
+
+function stopClientCamera() {
+    isClientCameraActive = false;
+    clientFrameSending = false;
+
+    if (clientCameraWs) {
+        clientCameraWs.close();
+        clientCameraWs = null;
+    }
+
+    if (clientMediaStream) {
+        clientMediaStream.getTracks().forEach(track => track.stop());
+        clientMediaStream = null;
+    }
+
+    const videoEl = document.getElementById("clientWebcamVideo");
+    if (videoEl) {
+        videoEl.srcObject = null;
+    }
+
+    const liveImg = document.getElementById("liveStream");
+    if (liveImg && liveImg.src && liveImg.src.startsWith("blob:")) {
+        URL.revokeObjectURL(liveImg.src);
+        liveImg.src = "";
+    }
+}
+
 // Display Mode Switcher (Realtime Single Output vs. Offline Dual Input/Output)
 function syncDisplayMode(sourceType) {
     currentSourceType = sourceType;
-    const isCamera = (sourceType === "camera");
+    const isCamera = (sourceType === "camera" || sourceType === "client_camera");
     const realtimeBox = document.getElementById("realtimeContainer");
     const offlineBox = document.getElementById("offlineDualContainer");
     const modeBadge = document.getElementById("activeModeBadge");
@@ -438,18 +583,23 @@ function syncDisplayMode(sourceType) {
         if (realtimeBox) realtimeBox.style.display = "flex";
         if (offlineBox) offlineBox.style.display = "none";
         if (modeBadge) {
-            modeBadge.textContent = "REALTIME OUTPUT";
+            modeBadge.textContent = "CLIENT CAM (400x600)";
             modeBadge.className = "mode-status-badge realtime";
         }
         if (btnCamera) btnCamera.classList.add("active");
         if (camText) camText.textContent = "Cam Active";
 
-        // Kích hoạt kết nối stream MJPEG
-        if (liveStream && (!liveStream.src || !liveStream.src.includes("/video_feed"))) {
-            liveStream.src = `/video_feed?t=${Date.now()}`;
+        // Nếu là host camera (không phải client camera), nạp stream MJPEG từ server
+        if (sourceType === "camera" && !isClientCameraActive) {
+            if (liveStream && (!liveStream.src || !liveStream.src.includes("/video_feed"))) {
+                liveStream.src = `/video_feed?t=${Date.now()}`;
+            }
         }
     } else {
         // Chế độ OFFLINE (1 ảnh): Hiển thị cả Input (trái) và Output (phải)
+        if (isClientCameraActive) {
+            stopClientCamera();
+        }
         if (realtimeBox) realtimeBox.style.display = "none";
         if (offlineBox) offlineBox.style.display = "grid";
         if (modeBadge) {
@@ -457,9 +607,9 @@ function syncDisplayMode(sourceType) {
             modeBadge.className = "mode-status-badge offline";
         }
         if (btnCamera) btnCamera.classList.remove("active");
-        if (camText) camText.textContent = "Live Cam";
+        if (camText) camText.textContent = "Client Cam";
 
-        // Tắt MJPEG feed khi xem ảnh tĩnh để tiết kiệm tối đa tài nguyên
+        // Tắt feed khi xem ảnh tĩnh để tiết kiệm tối đa tài nguyên
         if (liveStream) {
             liveStream.src = "";
         }
@@ -499,30 +649,42 @@ function initControls() {
     syncDisplayMode("sample");
     refreshOfflineImages();
 
-    // 1. Bật/Tắt Live Camera Realtime
+    // 1. Bật/Tắt Live Client Camera Realtime
     const btnCamera = document.getElementById("btnToggleCamera");
     if (btnCamera) {
-        btnCamera.addEventListener("click", () => {
-            const isCurrentlyCam = (currentSourceType === "camera");
-            const targetAction = isCurrentlyCam ? "sample" : "camera";
-            if (!isCurrentlyCam) {
-                showLoading("Switching to live camera...");
-            }
-            const fd = new FormData();
-            fd.append("action", targetAction);
+        btnCamera.addEventListener("click", async () => {
+            const isCurrentlyActive = isClientCameraActive || (currentSourceType === "client_camera" || currentSourceType === "camera");
 
-            fetch("/api/source", { method: "POST", body: fd })
-                .then(r => r.json())
-                .then(d => {
+            if (isCurrentlyActive) {
+                // Tắt Client Camera, chuyển về chế độ mẫu Offline
+                stopClientCamera();
+                const fd = new FormData();
+                fd.append("action", "sample");
+                try {
+                    const res = await fetch("/api/source", { method: "POST", body: fd });
+                    const d = await res.json();
                     syncDisplayMode(d.source_type);
-                    if (d.source_type !== "camera") {
-                        refreshOfflineImages();
-                    }
-                })
-                .catch(err => {
-                    console.error("Error toggling camera:", err);
+                    refreshOfflineImages();
+                } catch (e) {
+                    console.error("Error switching to sample:", e);
+                }
+            } else {
+                // Bật Client Camera trực tiếp từ webcam trình duyệt
+                showLoading("Đang yêu cầu quyền truy cập Camera của bạn...");
+                try {
+                    await startClientCamera();
+                    const fd = new FormData();
+                    fd.append("action", "client_camera");
+                    const res = await fetch("/api/source", { method: "POST", body: fd });
+                    const d = await res.json();
+                    syncDisplayMode(d.source_type);
+                } catch (err) {
+                    console.error("Error starting client camera:", err);
                     hideLoading();
-                });
+                    alert("Không thể khởi động camera của trình duyệt:\n" + (err.message || err) + 
+                          "\n\nLưu ý: Nếu truy cập qua IP LAN (không phải localhost), trình duyệt yêu cầu kết nối HTTPS hoặc bật cờ chrome://flags/#unsafely-treat-insecure-origin-as-secure");
+                }
+            }
         });
     }
 
@@ -531,6 +693,9 @@ function initControls() {
     if (uploadInput) {
         uploadInput.addEventListener("change", (e) => {
             if (e.target.files && e.target.files[0]) {
+                if (isClientCameraActive) {
+                    stopClientCamera();
+                }
                 showLoading("Uploading & running CIDNet inference...");
                 const fd = new FormData();
                 fd.append("file", e.target.files[0]);
@@ -564,6 +729,9 @@ function initControls() {
 
     if (btnNext) {
         btnNext.addEventListener("click", () => {
+            if (isClientCameraActive) {
+                stopClientCamera();
+            }
             showLoading("Inferring next sample with CIDNet...");
             btnNext.disabled = true;
             btnPrev.disabled = true;
@@ -588,6 +756,9 @@ function initControls() {
 
     if (btnPrev) {
         btnPrev.addEventListener("click", () => {
+            if (isClientCameraActive) {
+                stopClientCamera();
+            }
             showLoading("Inferring prev sample with CIDNet...");
             btnNext.disabled = true;
             btnPrev.disabled = true;
@@ -610,3 +781,9 @@ function initControls() {
         });
     }
 }
+
+window.addEventListener("beforeunload", () => {
+    if (isClientCameraActive) {
+        stopClientCamera();
+    }
+});
