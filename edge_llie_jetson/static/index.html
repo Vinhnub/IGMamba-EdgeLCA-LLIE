@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EdgeLLIE - Low-Light Enhancement on NVIDIA Jetson Orin Nano</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="dark-theme">
+
+  <!-- Top Application Header -->
+  <header class="app-header">
+    <div class="brand-block">
+      <h1 class="brand-title">EdgeLLIE</h1>
+      <p class="brand-subtitle">LOW-LIGHT IMAGE ENHANCEMENT &amp; EDGE HARDWARE MONITOR</p>
+    </div>
+
+    <div class="header-actions">
+      <!-- Light / Dark Theme Toggle Button -->
+      <button id="btnThemeToggle" class="btn-theme-toggle" title="Chuyển đổi giữa Giao diện Sáng và Tối">
+        <span id="themeIcon">🌙</span>
+        <span id="themeText">Dark</span>
+      </button>
+
+      <!-- Pretrained Weights Selector in Header -->
+      <div class="header-weight-wrapper">
+        <label for="selectModelWeight" class="header-weight-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4Z"/>
+            <path d="M6 8a4 4 0 0 0-4 4v1a4 4 0 0 0 8 0v-1a4 4 0 0 0-4-4Z"/>
+            <path d="M18 8a4 4 0 0 0-4 4v1a4 4 0 0 0 8 0v-1a4 4 0 0 0-4-4Z"/>
+          </svg>
+          MODEL WEIGHT:
+        </label>
+        <select id="selectModelWeight" class="header-weight-select">
+          <option value="" disabled selected>Loading weights...</option>
+        </select>
+      </div>
+
+      <!-- Jetson Hardware Status Badge -->
+      <div class="jetson-badge">
+        <span class="dot"></span>
+        <span id="connectionStatus">NVIDIA Jetson Orin Nano (15W)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Grid (Full Viewport Height) -->
+  <main class="dashboard-grid">
+
+    <!-- LEFT COLUMN: Camera Feed, Input Controls & Luminance Waveform -->
+    <section class="left-column">
+      <div class="card-panel camera-main-card">
+        
+        <!-- Header Bar with Full Input & Realtime Controls -->
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>
+              <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
+              <circle cx="12" cy="12" r="2"/>
+              <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/>
+              <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/>
+            </svg>
+            CAMERA &amp; LUMINANCE SENSOR
+          </div>
+
+          <!-- Input Actions Toolbar -->
+          <div class="camera-toolbar-actions">
+            
+            <!-- Realtime Live Camera Button -->
+            <button id="btnToggleCamera" class="btn-tool-action" title="Bật/Tắt Camera Realtime (CSI / USB)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span id="camStatusText">Live Cam</span>
+            </button>
+
+            <!-- Upload Custom Image Button -->
+            <label class="btn-tool-action" title="Tải ảnh thiếu sáng từ máy tính để tăng sáng">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" x2="12" y1="3" y2="15"/>
+              </svg>
+              <span>Upload</span>
+              <input type="file" id="imageUploadInput" accept="image/*" style="display: none;">
+            </label>
+
+            <!-- LOL Dataset Sample Switcher -->
+            <div class="sample-nav-group">
+              <button id="btnPrevSample" class="btn-nav-arrow" title="Ảnh mẫu trước đó">◀</button>
+              <span class="sample-label-text">LOL Sample</span>
+              <button id="btnNextSample" class="btn-nav-arrow" title="Ảnh mẫu kế tiếp">▶</button>
+            </div>
+
+            <!-- Mode Badge -->
+            <div id="activeModeBadge" class="mode-status-badge">
+              OFFLINE DUAL
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Video & Image Display Container -->
+        <div class="video-container-wrapper">
+          
+          <!-- Loading Overlay for Model Inference -->
+          <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="spinner-ring"></div>
+            <span id="loadingText">Inferring PyTorch CIDNet...</span>
+          </div>
+
+          <!-- 1. REALTIME VIEW (Chỉ hiển thị Output đơn khi Live Camera bật) -->
+          <div id="realtimeContainer" class="realtime-view-container" style="display: none;">
+            <div class="video-floating-fps-pill">
+              <span class="fps-dot"></span>
+              <span id="valLiveFps">30.0</span> FPS
+            </div>
+            <img id="liveStream" class="video-element" src="" alt="Real-time Enhanced Stream">
+          </div>
+
+          <!-- 2. OFFLINE VIEW (Hiển thị Input bên trái, Output bên phải) -->
+          <div id="offlineDualContainer" class="offline-dual-grid">
+            
+            <!-- Left Pane: Input (Original Low-Light) -->
+            <div class="image-pane pane-input">
+              <div class="pane-badge input-badge">INPUT (LOW-LIGHT)</div>
+              <img id="offlineInputImg" class="pane-image" src="/offline_input" alt="Original Input">
+            </div>
+
+            <!-- Right Pane: Output (Enhanced) -->
+            <div class="image-pane pane-output">
+              <div class="pane-badge output-badge">OUTPUT (ENHANCED)</div>
+              <img id="offlineOutputImg" class="pane-image" src="/offline_output" alt="Enhanced Output">
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Real-Time Luminance Profile Oscilloscope (Waveform Graph) -->
+        <div class="waveform-section">
+          <!-- Y-Axis Scale Labels -->
+          <div class="waveform-y-axis">
+            <span>+1.0</span>
+            <span>+0.5</span>
+            <span>0.0</span>
+            <span>-0.5</span>
+            <span>-1.0</span>
+          </div>
+
+          <!-- Waveform Canvas -->
+          <div class="waveform-canvas-wrapper">
+            <canvas id="waveformCanvas"></canvas>
+          </div>
+
+          <!-- X-Axis Time Labels -->
+          <div class="waveform-x-axis">
+            <span>0.0s</span>
+            <span>0.5s</span>
+            <span>1.0s</span>
+            <span>1.5s</span>
+            <span>2.0s</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Enhancement Status & Jetson Device Status -->
+    <section class="right-column">
+
+      <!-- CARD 1: ENHANCEMENT STATUS -->
+      <div class="card-panel status-card">
+        
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="20" height="14" x="2" y="3" rx="2"/>
+              <line x1="8" x2="16" y1="21" y2="21"/>
+              <line x1="12" x2="12" y1="17" y2="21"/>
+            </svg>
+            ENHANCEMENT STATUS
+          </div>
+        </div>
+
+        <!-- Large Bold Status Indicator -->
+        <div id="statusHighlight" class="status-highlight-text">
+          OPTIMAL
+        </div>
+
+        <!-- Scale Segmented Bar Section -->
+        <div>
+          <div class="scale-label">ILLUMINATION INTENSITY SCALE</div>
+          <div class="intensity-scale-row">
+            
+            <!-- Pill 1: Extreme Low -->
+            <div id="pillExtremeLow" class="scale-pill-box">
+              <div class="scale-bar-track">
+                <div id="barExtremeLow" class="scale-bar-fill" style="width: 5%;"></div>
+              </div>
+              <div class="scale-pill-name">Extreme Low</div>
+            </div>
+
+            <!-- Pill 2: Low -->
+            <div id="pillLow" class="scale-pill-box">
+              <div class="scale-bar-track">
+                <div id="barLow" class="scale-bar-fill" style="width: 15%;"></div>
+              </div>
+              <div class="scale-pill-name">Low</div>
+            </div>
+
+            <!-- Pill 3: Medium -->
+            <div id="pillMedium" class="scale-pill-box">
+              <div class="scale-bar-track">
+                <div id="barMedium" class="scale-bar-fill" style="width: 30%;"></div>
+              </div>
+              <div class="scale-pill-name">Medium</div>
+            </div>
+
+            <!-- Pill 4: Optimal (Active State) -->
+            <div id="pillOptimal" class="scale-pill-box active">
+              <div class="scale-bar-track">
+                <div id="barOptimal" class="scale-bar-fill" style="width: 95%;"></div>
+              </div>
+              <div class="scale-pill-name">Optimal</div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CARD 2: DEVICE STATUS (NVIDIA Jetson Orin Nano Hardware Telemetry with VRAM & FPS) -->
+      <div class="card-panel device-card">
+        
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            DEVICE STATUS
+          </div>
+        </div>
+
+        <!-- 8 Full Telemetry Tiles (2 columns x 4 rows) -->
+        <div class="device-metrics-grid">
+          
+          <!-- Metric 1: Data Preprocessing -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">Data Preprocessing</span>
+              <svg class="metric-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" x2="12" y1="15" y2="3"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valPrepTime" class="metric-value">7.8</span>
+              <span class="metric-unit">ms</span>
+            </div>
+          </div>
+
+          <!-- Metric 2: Inference -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">Inference</span>
+              <svg class="metric-icon cyan" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" x2="12" y1="8" y2="12"/>
+                <line x1="12" x2="12.01" y1="16" y2="16"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valInferTime" class="metric-value">11.7</span>
+              <span class="metric-unit">ms</span>
+            </div>
+          </div>
+
+          <!-- Metric 3: Pipeline FPS -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">Pipeline FPS</span>
+              <svg class="metric-icon cyan" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valFps" class="metric-value">30.0</span>
+              <span class="metric-unit">FPS</span>
+            </div>
+          </div>
+
+          <!-- Metric 4: GPU Load -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">GPU Load</span>
+              <svg class="metric-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="18" height="18" x="3" y="3" rx="2"/>
+                <path d="M3 9h18"/>
+                <path d="M9 21V9"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valGpuLoad" class="metric-value">45</span>
+              <span class="metric-unit">%</span>
+            </div>
+          </div>
+
+          <!-- Metric 5: CPU Load -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">CPU Load</span>
+              <svg class="metric-icon cyan" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="16" height="16" x="4" y="4" rx="2"/>
+                <rect width="6" height="6" x="9" y="9" rx="1"/>
+                <path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/>
+                <path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valCpuLoad" class="metric-value">27</span>
+              <span class="metric-unit">%</span>
+            </div>
+          </div>
+
+          <!-- Metric 6: Device Temperature -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">Device Temperature</span>
+              <svg class="metric-icon orange" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valTemperature" class="metric-value">46</span>
+              <span class="metric-unit">°C</span>
+            </div>
+          </div>
+
+          <!-- Metric 7: VRAM (GPU Memory) -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">VRAM (GPU)</span>
+              <svg class="metric-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="18" height="14" x="3" y="5" rx="2"/>
+                <path d="M7 15h4"/>
+                <path d="m15 15 2-4"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valVramUsed" class="metric-value">1.8</span>
+              <span class="metric-unit">/ <span id="valVramTotal">8.0</span> GB</span>
+            </div>
+          </div>
+
+          <!-- Metric 8: Memory (RAM System) -->
+          <div class="metric-tile">
+            <div class="metric-tile-header">
+              <span class="metric-name">Memory (RAM)</span>
+              <svg class="metric-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="20" height="12" x="2" y="6" rx="2"/>
+                <circle cx="12" cy="12" r="2"/>
+                <path d="M6 12h.01M18 12h.01"/>
+              </svg>
+            </div>
+            <div class="metric-value-box">
+              <span id="valRamUsed" class="metric-value">3.2</span>
+              <span class="metric-unit">/ <span id="valRamTotal">8.0</span> GB</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
