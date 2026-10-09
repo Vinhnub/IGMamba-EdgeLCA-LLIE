@@ -480,10 +480,10 @@ async function startClientCamera() {
             const blob = event.data;
             if (blob instanceof Blob) {
                 const url = URL.createObjectURL(blob);
-                const liveImg = document.getElementById("liveStream");
-                if (liveImg) {
-                    const oldUrl = liveImg.src;
-                    liveImg.src = url;
+                const liveOutput = document.getElementById("liveStreamOutput");
+                if (liveOutput) {
+                    const oldUrl = liveOutput.src;
+                    liveOutput.src = url;
                     if (oldUrl && oldUrl.startsWith("blob:")) {
                         URL.revokeObjectURL(oldUrl);
                     }
@@ -541,7 +541,23 @@ function sendClientWebcamFrame() {
 
     clientFrameSending = true;
     canvasEl.toBlob((blob) => {
-        if (blob && clientCameraWs && clientCameraWs.readyState === WebSocket.OPEN) {
+        if (!blob) {
+            clientFrameSending = false;
+            return;
+        }
+
+        // Cập nhật ngay lập tức khung hình Input trước khi tăng sáng bên trái (256x256)
+        const liveInput = document.getElementById("liveStreamInput");
+        if (liveInput) {
+            const inputUrl = URL.createObjectURL(blob);
+            const oldInputUrl = liveInput.src;
+            liveInput.src = inputUrl;
+            if (oldInputUrl && oldInputUrl.startsWith("blob:")) {
+                URL.revokeObjectURL(oldInputUrl);
+            }
+        }
+
+        if (clientCameraWs && clientCameraWs.readyState === WebSocket.OPEN) {
             clientCameraWs.send(blob);
         } else {
             clientFrameSending = false;
@@ -568,14 +584,24 @@ function stopClientCamera() {
         videoEl.srcObject = null;
     }
 
-    const liveImg = document.getElementById("liveStream");
-    if (liveImg && liveImg.src && liveImg.src.startsWith("blob:")) {
-        URL.revokeObjectURL(liveImg.src);
-        liveImg.src = "";
+    const liveInput = document.getElementById("liveStreamInput");
+    if (liveInput) {
+        if (liveInput.src && liveInput.src.startsWith("blob:")) {
+            URL.revokeObjectURL(liveInput.src);
+        }
+        liveInput.src = "";
+    }
+
+    const liveOutput = document.getElementById("liveStreamOutput");
+    if (liveOutput) {
+        if (liveOutput.src && liveOutput.src.startsWith("blob:")) {
+            URL.revokeObjectURL(liveOutput.src);
+        }
+        liveOutput.src = "";
     }
 }
 
-// Display Mode Switcher (Realtime Single Output vs. Offline Dual Input/Output)
+// Display Mode Switcher (Realtime Dual Output vs. Offline Dual Input/Output)
 function syncDisplayMode(sourceType) {
     currentSourceType = sourceType;
     const isCamera = (sourceType === "camera" || sourceType === "client_camera");
@@ -584,24 +610,29 @@ function syncDisplayMode(sourceType) {
     const modeBadge = document.getElementById("activeModeBadge");
     const btnCamera = document.getElementById("btnToggleCamera");
     const camText = document.getElementById("camStatusText");
-    const liveStream = document.getElementById("liveStream");
+    const liveInput = document.getElementById("liveStreamInput");
+    const liveOutput = document.getElementById("liveStreamOutput");
 
     if (isCamera) {
         hideLoading();
-        // Chế độ REALTIME: Chỉ hiển thị duy nhất Output đầu ra
-        if (realtimeBox) realtimeBox.style.display = "flex";
+        // Chế độ REALTIME: Hiển thị 2 bên (Input trước & Output sau tăng sáng, đều 256x256)
+        if (realtimeBox) realtimeBox.style.display = "grid";
         if (offlineBox) offlineBox.style.display = "none";
         if (modeBadge) {
-            modeBadge.textContent = "CLIENT CAM (256x256)";
+            modeBadge.textContent = "REALTIME (256x256)";
             modeBadge.className = "mode-status-badge realtime";
         }
         if (btnCamera) btnCamera.classList.add("active");
         if (camText) camText.textContent = "Cam Active";
 
-        // Nếu là host camera (không phải client camera), nạp stream MJPEG từ server
+        // Nếu là host camera (không phải client camera), nạp stream MJPEG từ server cho cả 2 bên
         if (sourceType === "camera" && !isClientCameraActive) {
-            if (liveStream && (!liveStream.src || !liveStream.src.includes("/video_feed"))) {
-                liveStream.src = `/video_feed?t=${Date.now()}`;
+            const ts = Date.now();
+            if (liveInput && (!liveInput.src || !liveInput.src.includes("/video_feed_raw"))) {
+                liveInput.src = `/video_feed_raw?t=${ts}`;
+            }
+            if (liveOutput && (!liveOutput.src || !liveOutput.src.includes("/video_feed"))) {
+                liveOutput.src = `/video_feed?t=${ts}`;
             }
         }
     } else {
@@ -619,8 +650,17 @@ function syncDisplayMode(sourceType) {
         if (camText) camText.textContent = "Client Cam";
 
         // Tắt feed khi xem ảnh tĩnh để tiết kiệm tối đa tài nguyên
-        if (liveStream) {
-            liveStream.src = "";
+        if (liveInput) {
+            if (liveInput.src && liveInput.src.startsWith("blob:")) {
+                URL.revokeObjectURL(liveInput.src);
+            }
+            liveInput.src = "";
+        }
+        if (liveOutput) {
+            if (liveOutput.src && liveOutput.src.startsWith("blob:")) {
+                URL.revokeObjectURL(liveOutput.src);
+            }
+            liveOutput.src = "";
         }
     }
 }

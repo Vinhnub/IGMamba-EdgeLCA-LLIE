@@ -391,12 +391,34 @@ class CameraStreamManager:
                            b'Content-Type: image/jpeg\r\n\r\n' + self.cached_enhanced_jpeg + b'\r\n')
                 time.sleep(1.0 / self.target_fps)
             else:
-                # Chế độ offline: stream ảnh cached với tần số nhẹ để tránh ngốn CPU/GPU
-                if self.cached_enhanced_jpeg is None or self.is_dirty:
-                    self.read_processed_frame(force_recompute=False)
-                if self.cached_enhanced_jpeg:
+                time.sleep(0.2)
+
+    def generate_raw_mjpeg_stream(self) -> Generator[bytes, None, None]:
+        """Tạo stream MJPEG ảnh gốc (Input • 256x256) thời gian thực."""
+        while True:
+            if self.source_type == "camera":
+                frame = self.latest_raw_frame
+                if frame is None:
+                    frame = self._create_synthetic_lowlight_frame()
+                ret, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                if not ret:
+                    time.sleep(0.01)
+                    continue
+                frame_bytes = jpeg.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                time.sleep(1.0 / self.target_fps)
+            elif self.source_type == "client_camera":
+                if self.cached_raw_jpeg:
                     yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + self.cached_enhanced_jpeg + b'\r\n')
+                           b'Content-Type: image/jpeg\r\n\r\n' + self.cached_raw_jpeg + b'\r\n')
+                time.sleep(1.0 / self.target_fps)
+            else:
+                if self.cached_raw_jpeg is None or self.is_dirty:
+                    self.read_processed_frame(force_recompute=False)
+                if self.cached_raw_jpeg:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + self.cached_raw_jpeg + b'\r\n')
                 time.sleep(0.2)
 
 camera_manager = CameraStreamManager()

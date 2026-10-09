@@ -36,9 +36,17 @@ async def get_index():
 
 @app.get("/video_feed")
 async def video_feed():
-    """Streaming video MJPEG thời gian thực (chế độ camera: chỉ hiển thị output)."""
+    """Streaming video MJPEG thời gian thực (chế độ camera: output đã tăng sáng)."""
     return StreamingResponse(
         camera_manager.generate_mjpeg_stream(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@app.get("/video_feed_raw")
+async def video_feed_raw():
+    """Streaming video MJPEG thời gian thực (chế độ camera: input gốc 256x256 trước tăng sáng)."""
+    return StreamingResponse(
+        camera_manager.generate_raw_mjpeg_stream(),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 

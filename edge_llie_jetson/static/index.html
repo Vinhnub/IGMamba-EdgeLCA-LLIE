@@ -116,13 +116,24 @@
             <span id="loadingText">Inferring PyTorch CIDNet...</span>
           </div>
 
-          <!-- 1. REALTIME VIEW (Chỉ hiển thị Output đơn khi Live Camera bật) -->
-          <div id="realtimeContainer" class="realtime-view-container" style="display: none;">
+          <!-- 1. REALTIME VIEW (Dual Pane: Input trước khi tăng sáng bên trái, Output sau khi tăng sáng bên phải, đều 256x256) -->
+          <div id="realtimeContainer" class="offline-dual-grid" style="display: none;">
             <div class="video-floating-fps-pill">
               <span class="fps-dot"></span>
               <span id="valLiveFps">30.0</span> FPS
             </div>
-            <img id="liveStream" class="video-element" src="" alt="Real-time Enhanced Stream">
+
+            <!-- Left Pane: Input (Before Enhancement • 256x256) -->
+            <div class="image-pane pane-input">
+              <div class="pane-badge input-badge">INPUT (BEFORE • 256x256)</div>
+              <img id="liveStreamInput" class="pane-image" src="" alt="Real-time Input Stream">
+            </div>
+
+            <!-- Right Pane: Output (Enhanced • 256x256) -->
+            <div class="image-pane pane-output">
+              <div class="pane-badge output-badge">OUTPUT (ENHANCED • 256x256)</div>
+              <img id="liveStreamOutput" class="pane-image" src="" alt="Real-time Enhanced Stream">
+            </div>
           </div>
 
           <!-- 2. OFFLINE VIEW (Hiển thị Input bên trái, Output bên phải) -->
