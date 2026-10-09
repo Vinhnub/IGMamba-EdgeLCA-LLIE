@@ -20,8 +20,8 @@ class AppConfig(BaseModel):
     VIDEO_SOURCE: str = os.getenv("VIDEO_SOURCE", "sample")
     CAMERA_INDEX: int = int(os.getenv("CAMERA_INDEX", "0"))
     CSI_SENSOR_ID: int = int(os.getenv("CSI_SENSOR_ID", "0"))
-    FRAME_WIDTH: int = 600
-    FRAME_HEIGHT: int = 400
+    FRAME_WIDTH: int = 256
+    FRAME_HEIGHT: int = 256
     FPS: int = 30
     
     # Enhancement defaults (matching CIDNet & HVI parameters)

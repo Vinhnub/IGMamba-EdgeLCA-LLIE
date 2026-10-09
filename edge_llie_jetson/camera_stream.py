@@ -174,9 +174,14 @@ class CameraStreamManager:
         dt = now_ts - self.last_frame_ts
         self.last_frame_ts = now_ts
 
-        # Tự động chuẩn hóa về kích thước 400x600 (height=400, width=600)
-        if raw_frame.shape[0] != 400 or raw_frame.shape[1] != 600:
-            raw_frame = cv2.resize(raw_frame, (600, 400), interpolation=cv2.INTER_AREA)
+        # Tự động crop trung tâm về hình vuông và resize về chuẩn 256x256
+        h, w = raw_frame.shape[:2]
+        if h != 256 or w != 256:
+            min_dim = min(h, w)
+            top = (h - min_dim) // 2
+            left = (w - min_dim) // 2
+            cropped = raw_frame[top:top+min_dim, left:left+min_dim]
+            raw_frame = cv2.resize(cropped, (256, 256), interpolation=cv2.INTER_AREA)
 
         self.latest_raw_frame = raw_frame
 
@@ -249,9 +254,14 @@ class CameraStreamManager:
             if raw_frame is None:
                 raw_frame = self._create_synthetic_lowlight_frame()
 
-            # Tự động giảm kích thước ảnh xuống 400x600 (height=400, width=600) cho realtime live camera để đủ tốc độ xử lý
-            if raw_frame.shape[0] != 400 or raw_frame.shape[1] != 600:
-                raw_frame = cv2.resize(raw_frame, (600, 400), interpolation=cv2.INTER_AREA)
+            # Tự động crop trung tâm về hình vuông và resize về chuẩn 256x256 cho realtime live camera
+            h, w = raw_frame.shape[:2]
+            if h != 256 or w != 256:
+                min_dim = min(h, w)
+                top = (h - min_dim) // 2
+                left = (w - min_dim) // 2
+                cropped = raw_frame[top:top+min_dim, left:left+min_dim]
+                raw_frame = cv2.resize(cropped, (256, 256), interpolation=cv2.INTER_AREA)
 
             self.latest_raw_frame = raw_frame
 

@@ -61,9 +61,18 @@ def main():
                 # GPU
                 gpu_load = 0.0
                 if hasattr(jetson, 'gpu') and isinstance(jetson.gpu, dict):
-                    gpu_load = jetson.gpu.get('val', 0.0)
-                elif hasattr(jetson, 'stats') and 'GPU' in jetson.stats:
-                    gpu_load = jetson.stats['GPU']
+                    for g_k, g_v in jetson.gpu.items():
+                        if isinstance(g_v, dict):
+                            for lk in ["load", "val", "status"]:
+                                if lk in g_v and isinstance(g_v[lk], (int, float)):
+                                    gpu_load = float(g_v[lk])
+                                    break
+                        elif isinstance(g_v, (int, float)) and g_k in ["val", "load"]:
+                            gpu_load = float(g_v)
+                        if gpu_load > 0.0: break
+                if gpu_load == 0.0 and hasattr(jetson, 'stats') and 'GPU' in jetson.stats:
+                    g_val = jetson.stats['GPU']
+                    gpu_load = float(g_val.get('val', g_val) if isinstance(g_val, dict) else g_val)
                 print(f"  - GPU Load:         {gpu_load}%")
 
                 # CPU

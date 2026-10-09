@@ -66,26 +66,58 @@ class JetsonHardwareMonitor:
                 pass
         return False
 
+    def _read_tegrastats_gpu(self) -> Optional[float]:
+        """Đọc GPU utilization trực tiếp từ tiện ích tegrastats mặc định trên Jetson."""
+        if not os.path.exists("/usr/bin/tegrastats"):
+            return None
+        try:
+            cmd = ["/usr/bin/tegrastats", "--interval", "100"]
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            line, _ = proc.communicate(timeout=0.25)
+            proc.kill()
+            if line:
+                import re
+                m = re.search(r"GR3D(?:_FREQ)?\s+([0-9]+)%", line)
+                if m:
+                    return float(m.group(1))
+        except Exception:
+            pass
+        return None
+
     def _read_tegra_sysfs(self) -> Dict[str, float]:
         """Đọc trực tiếp từ sysfs của Linux Tegra trên Jetson Orin Nano."""
         gpu_load = 0.0
         temp = 0.0
         
         gpu_paths = [
-            "/sys/devices/gpu.0/load",
+            "/sys/devices/platform/17000000.ga10b/devfreq/17000000.ga10b/load",
+            "/sys/devices/platform/bus@0/17000000.ga10b/devfreq/17000000.ga10b/load",
+            "/sys/devices/17000000.ga10b/devfreq/17000000.ga10b/load",
             "/sys/class/devfreq/17000000.ga10b/device/load",
             "/sys/class/devfreq/17000000.ga10b/load",
-            "/sys/devices/platform/17000000.ga10b/devfreq/17000000.ga10b/cur_freq"
+            "/sys/devices/platform/17000000.ga10b/load",
+            "/sys/devices/gpu.0/load"
         ]
         for path in gpu_paths:
             if os.path.exists(path):
                 try:
                     with open(path, "r") as f:
-                        val = float(f.read().strip())
+                        raw = f.read().strip()
+                        # Xử lý định dạng <load>@<freq> của devfreq (ví dụ: '45@624000000' hoặc '0@114000000')
+                        if "@" in raw:
+                            raw = raw.split("@")[0].strip()
+                        val = float(raw)
+                        # Một số kernel trả về 0..1000 (1000 = 100%), một số trả về 0..100
                         gpu_load = val / 10.0 if val > 100 else val
                         break
                 except Exception:
                     pass
+
+        # Nếu sysfs vẫn bằng 0 hoặc không đọc được, thử qua tegrastats
+        if gpu_load == 0.0:
+            tegra_val = self._read_tegrastats_gpu()
+            if tegra_val is not None:
+                gpu_load = tegra_val
 
         for zone in range(10):
             type_path = f"/sys/class/thermal/thermal_zone{zone}/type"
@@ -213,14 +245,41 @@ class JetsonHardwareMonitor:
                 try:
                     gpu_data = self.jetson.gpu
                     if isinstance(gpu_data, dict):
-                        gpu_load = float(gpu_data.get("val", gpu_data.get("gpu", {}).get("val", 0.0)))
+                        # Trong jtop 4.x / Orin: jetson.gpu = {'gpu': {'load': 45, ...}} hoặc {'ga10b': {'load': 45, ...}}
+                        for g_k, g_v in gpu_data.items():
+                            if isinstance(g_v, dict):
+                                for lk in ["load", "val", "status"]:
+                                    if lk in g_v:
+                                        lv = g_v[lk]
+                                        if isinstance(lv, (int, float)):
+                                            gpu_load = float(lv)
+                                            break
+                                        elif isinstance(lv, dict) and "load" in lv:
+                                            gpu_load = float(lv["load"])
+                                            break
+                            elif isinstance(g_v, (int, float)) and g_k in ["val", "load"]:
+                                gpu_load = float(g_v)
+                            if gpu_load > 0.0:
+                                break
                     elif hasattr(gpu_data, "val"):
                         gpu_load = float(gpu_data.val)
                 except Exception:
                     pass
             if gpu_load == 0.0 and stats:
-                gpu_val = stats.get('GPU', stats.get('gpu', 0.0))
-                gpu_load = float(gpu_val.get('val', gpu_val) if isinstance(gpu_val, dict) else gpu_val)
+                for k in ['GPU', 'gpu', 'GR3D']:
+                    if k in stats:
+                        g_item = stats[k]
+                        if isinstance(g_item, (int, float)):
+                            gpu_load = float(g_item)
+                            break
+                        elif isinstance(g_item, dict):
+                            gpu_load = float(g_item.get('load', g_item.get('val', 0.0)))
+                            break
+            # Fallback nếu jtop trả về 0 nhưng tegrastats đọc được giá trị thực
+            if gpu_load == 0.0:
+                tegra_val = self._read_tegrastats_gpu()
+                if tegra_val is not None:
+                    gpu_load = tegra_val
 
             # 2. CPU Load (%)
             cpu_load = psutil.cpu_percent(interval=None)

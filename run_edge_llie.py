@@ -32,10 +32,23 @@ if sys.platform == "win32":
 
 from edge_llie_jetson.config import config
 
+def get_lan_ip():
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
 if __name__ == "__main__":
-    print("=" * 60)
+    lan_ip = get_lan_ip()
+    print("=" * 65)
     print("   EDGELLIE SYSTEM ON NVIDIA JETSON ORIN NANO")
-    print(f"   Dashboard URL: http://localhost:{config.PORT}")
+    print(f"   Local URL:    http://localhost:{config.PORT}")
+    print(f"   Network URL:  http://{lan_ip}:{config.PORT} (Dành cho điện thoại cùng Wi-Fi)")
     print("   Press Ctrl+C to stop server")
-    print("=" * 60)
+    print("=" * 65)
     uvicorn.run("edge_llie_jetson.app:app", host=config.HOST, port=config.PORT, reload=False)

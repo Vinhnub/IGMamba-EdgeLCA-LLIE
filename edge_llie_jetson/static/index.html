@@ -106,9 +106,9 @@
         <!-- Video & Image Display Container -->
         <div class="video-container-wrapper">
           
-          <!-- Hidden Video & Canvas for Client Webcam Capture (Auto-downscaled to 400x600) -->
+          <!-- Hidden Video & Canvas for Client Webcam Capture (Auto-cropped to 256x256) -->
           <video id="clientWebcamVideo" playsinline autoplay muted style="display: none;"></video>
-          <canvas id="clientWebcamCanvas" width="600" height="400" style="display: none;"></canvas>
+          <canvas id="clientWebcamCanvas" width="256" height="256" style="display: none;"></canvas>
 
           <!-- Loading Overlay for Model Inference -->
           <div id="loadingOverlay" class="loading-overlay" style="display: none;">

@@ -458,8 +458,12 @@ class LowLightEnhancementEngine:
         """
         t_prep_start = time.perf_counter()
         h, w = frame.shape[:2]
-        if is_realtime_stream and (h != 400 or w != 600):
-            proc_input = cv2.resize(frame, (600, 400), interpolation=cv2.INTER_AREA)
+        if is_realtime_stream and (h != 256 or w != 256):
+            min_dim = min(h, w)
+            top = (h - min_dim) // 2
+            left = (w - min_dim) // 2
+            cropped = frame[top:top+min_dim, left:left+min_dim]
+            proc_input = cv2.resize(cropped, (256, 256), interpolation=cv2.INTER_AREA)
         else:
             proc_input = frame
             

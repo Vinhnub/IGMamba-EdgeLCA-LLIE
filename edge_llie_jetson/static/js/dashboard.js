@@ -456,6 +456,10 @@ async function startClientCamera() {
     videoEl.srcObject = stream;
     await videoEl.play();
 
+    // Cài đặt kích thước canvas 256x256
+    canvasEl.width = 256;
+    canvasEl.height = 256;
+
     // Kết nối WebSocket chuyên dụng gửi nhận frame client
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws/client_camera`;
@@ -527,8 +531,13 @@ function sendClientWebcamFrame() {
     }
 
     const ctx = canvasEl.getContext("2d");
-    // Co giãn khung hình về đúng 600x400 ngay tại Client Canvas
-    ctx.drawImage(videoEl, 0, 0, 600, 400);
+    // Center-crop khung hình từ webcam về hình vuông rồi co giãn về đúng 256x256
+    const vw = videoEl.videoWidth;
+    const vh = videoEl.videoHeight;
+    const minDim = Math.min(vw, vh);
+    const sx = (vw - minDim) / 2;
+    const sy = (vh - minDim) / 2;
+    ctx.drawImage(videoEl, sx, sy, minDim, minDim, 0, 0, 256, 256);
 
     clientFrameSending = true;
     canvasEl.toBlob((blob) => {
@@ -583,7 +592,7 @@ function syncDisplayMode(sourceType) {
         if (realtimeBox) realtimeBox.style.display = "flex";
         if (offlineBox) offlineBox.style.display = "none";
         if (modeBadge) {
-            modeBadge.textContent = "CLIENT CAM (400x600)";
+            modeBadge.textContent = "CLIENT CAM (256x256)";
             modeBadge.className = "mode-status-badge realtime";
         }
         if (btnCamera) btnCamera.classList.add("active");
