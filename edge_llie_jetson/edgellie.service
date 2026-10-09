@@ -1,0 +1,17 @@
+[Unit]
+Description=EdgeLLIE Low-Light Image Enhancement Service on NVIDIA Jetson Orin Nano
+After=network.target
+
+[Service]
+Type=simple
+# Thay đổi User và WorkingDirectory cho đúng user trên Jetson (mặc định thường là orin hoặc jetson)
+User=%I
+WorkingDirectory=/home/%I/IGMamba-EdgeLCA-LLIE
+ExecStart=/usr/bin/python3 run_edge_llie.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=TORCH_CUDA_ARCH_LIST=8.7
+
+[Install]
+WantedBy=multi-user.target

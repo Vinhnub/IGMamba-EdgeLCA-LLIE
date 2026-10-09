@@ -80,6 +80,9 @@ async def websocket_telemetry(websocket: WebSocket):
             
             is_cam_mode = (camera_manager.source_type == "camera")
             
+            # Lấy dung lượng VRAM thực tế dùng để nạp mô hình
+            model_mem = llie_engine.get_model_memory_usage()
+            
             # Gom gói dữ liệu
             packet = {
                 # Thông số phần cứng deploy Jetson Orin Nano
@@ -89,7 +92,8 @@ async def websocket_telemetry(websocket: WebSocket):
                 "gpu_load": hw_metrics["gpu_load"],
                 "cpu_load": hw_metrics["cpu_load"],
                 "temperature": hw_metrics["temperature"],
-                "vram_used_gb": hw_metrics.get("vram_used_gb", 1.8),
+                "vram_used_mb": model_mem["mb"],
+                "vram_used_gb": model_mem["gb"],
                 "vram_total_gb": hw_metrics.get("vram_total_gb", 8.0),
                 "ram_used_gb": hw_metrics["ram_used_gb"],
                 "ram_total_gb": hw_metrics["ram_total_gb"],

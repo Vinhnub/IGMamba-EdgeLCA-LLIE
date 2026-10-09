@@ -239,10 +239,28 @@ function updateDashboard(data) {
     if (elCpu) elCpu.textContent = Math.round(data.cpu_load);
     if (elTemp) elTemp.textContent = Math.round(data.temperature);
     
-    // VRAM Metrics (GPU Memory)
-    if (elVramUsed && data.vram_used_gb !== undefined) {
-        const vramNum = Number(data.vram_used_gb);
-        elVramUsed.textContent = (vramNum < 1.0) ? vramNum.toFixed(2) : vramNum.toFixed(1);
+    // VRAM Metrics (GPU Memory used by the Model)
+    const elVramUnit = document.getElementById("valVramUnit");
+    if (elVramUsed) {
+        if (data.vram_used_mb !== undefined) {
+            const mb = Number(data.vram_used_mb);
+            if (mb >= 1024) {
+                elVramUsed.textContent = (mb / 1024).toFixed(2);
+                if (elVramUnit) elVramUnit.textContent = "GB";
+            } else {
+                elVramUsed.textContent = mb.toFixed(1);
+                if (elVramUnit) elVramUnit.textContent = "MB";
+            }
+        } else if (data.vram_used_gb !== undefined) {
+            const gb = Number(data.vram_used_gb);
+            if (gb < 1.0) {
+                elVramUsed.textContent = (gb * 1024).toFixed(1);
+                if (elVramUnit) elVramUnit.textContent = "MB";
+            } else {
+                elVramUsed.textContent = gb.toFixed(2);
+                if (elVramUnit) elVramUnit.textContent = "GB";
+            }
+        }
     }
     if (elVramTot && data.vram_total_gb !== undefined) {
         elVramTot.textContent = Number(data.vram_total_gb).toFixed(1);

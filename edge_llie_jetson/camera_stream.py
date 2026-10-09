@@ -193,6 +193,10 @@ class CameraStreamManager:
             if raw_frame is None:
                 raw_frame = self._create_synthetic_lowlight_frame()
 
+            # Tự động giảm kích thước ảnh xuống 400x600 (height=400, width=600) cho realtime live camera để đủ tốc độ xử lý
+            if raw_frame.shape[0] != 400 or raw_frame.shape[1] != 600:
+                raw_frame = cv2.resize(raw_frame, (600, 400), interpolation=cv2.INTER_AREA)
+
             self.latest_raw_frame = raw_frame
 
             enhanced_frame, telemetry = llie_engine.process_frame(
