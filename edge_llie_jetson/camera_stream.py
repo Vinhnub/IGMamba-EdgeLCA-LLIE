@@ -124,6 +124,11 @@ class CameraStreamManager:
         else:
             self.cached_sample_img = self._create_synthetic_lowlight_frame()
         self.is_dirty = True
+        if self.cached_sample_img is not None:
+            self.latest_raw_frame = self.cached_sample_img
+            ret, jpeg = cv2.imencode('.jpg', self.cached_sample_img, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            if ret:
+                self.cached_raw_jpeg = jpeg.tobytes()
 
     def _create_synthetic_lowlight_frame(self) -> np.ndarray:
         """Tạo khung hình low-light dự phòng chất lượng cao khi chưa có dataset hoặc camera."""
@@ -203,12 +208,7 @@ class CameraStreamManager:
 
         luminance_analyzer.update_from_frame(enhanced_frame)
 
-        # Chèn timestamp OSD hiển thị thời gian
-        now = datetime.datetime.now()
-        weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-        ts_text = f"{now.year}年{now.month:02d}月{now.day:02d}日  {weekdays[now.weekday()]}  {now.hour:02d}:{now.minute:02d}:{now.second:02d}"
-        display_frame = enhanced_frame.copy()
-        cv2.putText(display_frame, ts_text, (30, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
+        display_frame = enhanced_frame
 
         # Pre-encode vào cache JPEG
         ret_raw, raw_jpg = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
@@ -283,11 +283,7 @@ class CameraStreamManager:
 
             luminance_analyzer.update_from_frame(enhanced_frame)
 
-            now = datetime.datetime.now()
-            weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-            ts_text = f"{now.year}年{now.month:02d}月{now.day:02d}日  {weekdays[now.weekday()]}  {now.hour:02d}:{now.minute:02d}:{now.second:02d}"
-            display_frame = enhanced_frame.copy()
-            cv2.putText(display_frame, ts_text, (30, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
+            display_frame = enhanced_frame
             return display_frame
 
         # 2. Chế độ Offline (Ảnh tĩnh: LOL Sample hoặc Custom Upload)
@@ -325,11 +321,7 @@ class CameraStreamManager:
 
             luminance_analyzer.update_from_frame(enhanced_frame)
 
-            now = datetime.datetime.now()
-            weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-            ts_text = f"{now.year}年{now.month:02d}月{now.day:02d}日  {weekdays[now.weekday()]}  {now.hour:02d}:{now.minute:02d}:{now.second:02d}"
-            display_frame = enhanced_frame.copy()
-            cv2.putText(display_frame, ts_text, (30, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
+            display_frame = enhanced_frame
 
             # Pre-encode JPEGs vào bộ nhớ đệm để phục vụ tức thì (0.01 ms)
             ret_raw, raw_jpg = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
@@ -351,9 +343,16 @@ class CameraStreamManager:
             ret, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
             return jpeg.tobytes() if ret else b""
         
-        if self.cached_raw_jpeg is None or self.is_dirty:
-            self.read_processed_frame(force_recompute=True)
-        return self.cached_raw_jpeg if self.cached_raw_jpeg else b""
+        if self.cached_raw_jpeg is not None:
+            return self.cached_raw_jpeg
+        if self.cached_sample_img is None:
+            self._load_current_sample()
+        if self.cached_sample_img is not None:
+            ret, jpeg = cv2.imencode('.jpg', self.cached_sample_img, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            if ret:
+                self.cached_raw_jpeg = jpeg.tobytes()
+                return self.cached_raw_jpeg
+        return b""
 
     def get_enhanced_jpeg(self) -> bytes:
         """Lấy ảnh JPEG của khung hình tăng sáng (Output)."""
@@ -364,8 +363,9 @@ class CameraStreamManager:
             ret, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
             return jpeg.tobytes() if ret else b""
         
-        if self.cached_enhanced_jpeg is None or self.is_dirty:
-            self.read_processed_frame(force_recompute=True)
+        if self.cached_enhanced_jpeg is not None and not self.is_dirty:
+            return self.cached_enhanced_jpeg
+        self.read_processed_frame(force_recompute=True)
         return self.cached_enhanced_jpeg if self.cached_enhanced_jpeg else b""
 
     def generate_mjpeg_stream(self) -> Generator[bytes, None, None]:

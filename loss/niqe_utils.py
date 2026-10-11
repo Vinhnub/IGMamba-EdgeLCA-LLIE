@@ -1,4 +1,5 @@
 
+import os
 import cv2
 import math
 import numpy as np
@@ -532,9 +533,11 @@ def calculate_niqe(img, crop_border=0,input_order='HWC', convert_to='y', **kwarg
     Returns:
         float: NIQE result.
     """
-    # ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-    # we use the official params estimated from the pristine dataset.
-    niqe_pris_params = np.load('./loss/niqe_pris_params.npz')
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    params_path = os.path.join(current_dir, 'niqe_pris_params.npz')
+    if not os.path.exists(params_path):
+        params_path = './loss/niqe_pris_params.npz'
+    niqe_pris_params = np.load(params_path)
     mu_pris_param = niqe_pris_params['mu_pris_param']
     cov_pris_param = niqe_pris_params['cov_pris_param']
     gaussian_window = niqe_pris_params['gaussian_window']

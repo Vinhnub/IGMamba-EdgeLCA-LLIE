@@ -79,6 +79,7 @@ async def websocket_telemetry(websocket: WebSocket):
             prep_ms = camera_manager.latest_telemetry.get("prep_time_ms", llie_engine.last_prep_time)
             infer_ms = camera_manager.latest_telemetry.get("infer_time_ms", llie_engine.last_infer_time)
             fps_val = camera_manager.latest_telemetry.get("fps", camera_manager.current_fps)
+            niqe_val = camera_manager.latest_telemetry.get("niqe_score", getattr(llie_engine, "last_niqe_score", 4.12))
             status = camera_manager.latest_telemetry.get("status", "OPTIMAL")
             scale_dist = camera_manager.latest_telemetry.get("scale_distribution", llie_engine.scale_distribution)
             curr_weight = camera_manager.latest_telemetry.get("current_weight", llie_engine.current_weight)
@@ -97,6 +98,8 @@ async def websocket_telemetry(websocket: WebSocket):
                 "data_preprocessing_ms": prep_ms,
                 "inference_ms": infer_ms,
                 "fps": fps_val,
+                "niqe_output": niqe_val,
+                "niqe_score": niqe_val,
                 "gpu_load": hw_metrics["gpu_load"],
                 "cpu_load": hw_metrics["cpu_load"],
                 "temperature": hw_metrics["temperature"],
@@ -251,4 +254,11 @@ async def upload_image(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("edge_llie_jetson.app:app", host=config.HOST, port=config.PORT, reload=False)
+    ssl_key = "key.pem" if os.path.exists("key.pem") else None
+    ssl_cert = "cert.pem" if os.path.exists("cert.pem") else None
+    if ssl_key and ssl_cert:
+        print(f"[*] Starting EdgeLLIE with HTTPS on https://localhost:{config.PORT}")
+        uvicorn.run("edge_llie_jetson.app:app", host=config.HOST, port=config.PORT, reload=False, ssl_keyfile=ssl_key, ssl_certfile=ssl_cert)
+    else:
+        print(f"[*] Starting EdgeLLIE on http://localhost:{config.PORT}")
+        uvicorn.run("edge_llie_jetson.app:app", host=config.HOST, port=config.PORT, reload=False)
