@@ -116,6 +116,7 @@ async def websocket_telemetry(websocket: WebSocket):
                 "status": status,
                 "scale_distribution": scale_dist,
                 "current_weight": curr_weight,
+                "current_arch": camera_manager.latest_telemetry.get("current_arch", getattr(llie_engine, "current_arch_name", "CIDNet_Base")),
                 
                 # Dữ liệu sóng
                 "waveform": waveform_data,

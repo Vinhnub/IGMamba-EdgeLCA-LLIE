@@ -20,11 +20,13 @@ try:
     import torch.nn.functional as F
     from torchvision import transforms
     from net.CIDNet_Mamba_separable_learning_edge import CIDNet as CIDNet_Edge
-    from net.CIDNet_Mamba_separable_learning import CIDNet as CIDNet_Base
+    from net.CIDNet_Mamba_separable_learning import CIDNet as CIDNet_Mamba
+    from net.CIDNet_base import CIDNet as CIDNet_Base
     HAS_TORCH = True
 except Exception as _torch_err:
     HAS_TORCH = False
     CIDNet_Edge = None
+    CIDNet_Mamba = None
     CIDNet_Base = None
 
 try:
@@ -62,6 +64,8 @@ class LowLightEnhancementEngine:
         self.last_niqe_score = 4.12
         self._last_niqe_calc_time = 0.0
         self._niqe_thread_running = False
+        self.is_cidnet_base = False
+        self.current_arch_name = "CIDNet_Edge (IGMamba-EdgeLCA)"
         
         # Base repo path
         self.repo_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -142,7 +146,7 @@ class LowLightEnhancementEngine:
                 "items": weights_items
             })
 
-        # 3. Nhóm CIDNet Weights (weights_cidnet/)
+        # 3. Nhóm CIDNet Base Weights (weights_cidnet/)
         cidnet_dir = os.path.join(self.repo_base, "weights_cidnet")
         cidnet_items = []
         if os.path.exists(cidnet_dir):
@@ -151,15 +155,21 @@ class LowLightEnhancementEngine:
                     if f.endswith(".pth"):
                         full_p = os.path.join(root, f)
                         rel_p = os.path.relpath(full_p, self.repo_base).replace("\\", "/")
+                        rel_sub = os.path.relpath(full_p, cidnet_dir).replace("\\", "/")
+                        parts = rel_sub.split("/")
+                        if len(parts) > 1:
+                            label = f"CIDNet Base • {' • '.join(parts)}"
+                        else:
+                            label = f"CIDNet Base • {f}"
                         cidnet_items.append({
                             "id": rel_p,
-                            "name": f"CIDNet • {f}",
+                            "name": label,
                             "path": rel_p,
                             "filename": f
                         })
         if cidnet_items:
             categories.append({
-                "category": "CIDNet Base Weights (weights_cidnet/)",
+                "category": "CIDNet Base Models (weights_cidnet/)",
                 "items": cidnet_items
             })
 
@@ -211,22 +221,40 @@ class LowLightEnhancementEngine:
             print(f"[LLIE Engine] Loading model on device: {device} from: {weight_path}")
             
             state_dict = torch.load(full_path, map_location=device)
-            # Kiểm tra xem trọng số này có edge_extractor (mô hình EdgeLCA) hay không
+            clean_path = weight_path.replace("\\", "/")
+
+            # Phân loại kiến trúc mô hình dựa vào state_dict và đường dẫn:
             has_edge = any("edge_extractor" in k for k in state_dict.keys())
+            has_mamba = any("mamba" in k.lower() or "A_log" in k for k in state_dict.keys())
+            has_hv_lca = any("HV_LCA" in k for k in state_dict.keys())
+            is_cidnet_base = ("weights_cidnet" in clean_path) or (has_hv_lca and not has_mamba)
             
-            if has_edge and CIDNet_Edge is not None:
+            if is_cidnet_base and CIDNet_Base is not None:
+                model = CIDNet_Base().to(device)
+                arch_name = "CIDNet_Base (Pure Transformer-LCA)"
+            elif has_edge and CIDNet_Edge is not None:
                 model = CIDNet_Edge().to(device)
+                arch_name = "CIDNet_Edge (IGMamba-EdgeLCA)"
+            elif has_mamba and CIDNet_Mamba is not None:
+                model = CIDNet_Mamba().to(device)
+                arch_name = "CIDNet_Mamba (IGMamba)"
             elif CIDNet_Base is not None:
                 model = CIDNet_Base().to(device)
+                arch_name = "CIDNet_Base (Fallback)"
+            elif CIDNet_Edge is not None:
+                model = CIDNet_Edge().to(device)
+                arch_name = "CIDNet_Edge (Fallback)"
             else:
                 self.model = None
                 return
                 
             model.load_state_dict(state_dict, strict=False)
             model.eval()
+            self.model = model
+            self.is_cidnet_base = is_cidnet_base
+            self.current_arch_name = arch_name
             
             # Cấu hình cờ gated/alpha tương thích 100% với eval.py
-            clean_path = weight_path.replace("\\", "/")
             if "LOLv1" in clean_path or "LoLv1" in clean_path:
                 if hasattr(model, 'trans') and hasattr(model.trans, 'gated'):
                     model.trans.gated = True
@@ -250,8 +278,6 @@ class LowLightEnhancementEngine:
                     model.trans.gated2 = True
                 model.trans.alpha = 1.0
 
-            self.model = model
-            arch_name = "CIDNet_Edge (IGMamba-EdgeLCA)" if has_edge else "CIDNet_Base"
             print(f"[LLIE Engine] PyTorch model successfully initialized ({arch_name})!")
         except Exception as e:
             print(f"[LLIE Engine] Error initializing PyTorch model: {e}")
@@ -268,31 +294,35 @@ class LowLightEnhancementEngine:
           - Cắt bỏ phần padding thừa
           - Chuyển đổi về uint8 BGR
         """
-        # 1. BGR sang RGB
-        rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-        tensor_in = transforms.ToTensor()(rgb).unsqueeze(0).to(self.device)
-        
-        # 2. Reflect padding bội số 8 giống eval.py & eval_sets.py
-        factor = 8
-        _, _, h, w = tensor_in.shape
-        H = ((h + factor - 1) // factor) * factor
-        W = ((w + factor - 1) // factor) * factor
-        pad_h = H - h
-        pad_w = W - w
-        if pad_h > 0 or pad_w > 0:
-            padded_in = F.pad(tensor_in, (0, pad_w, 0, pad_h), mode='reflect')
-        else:
-            padded_in = tensor_in
+        try:
+            # 1. BGR sang RGB
+            rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+            tensor_in = transforms.ToTensor()(rgb).unsqueeze(0).to(self.device)
             
-        # 3. Model forward pass
-        with torch.no_grad():
-            output = self.model(padded_in ** gamma)
-            output = torch.clamp(output, 0.0, 1.0)
-            output = output[:, :, :h, :w]
-            
-        # 4. Chuyển đổi về uint8 BGR
-        rgb_out = (output.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255.0).clip(0, 255).astype(np.uint8)
-        return cv2.cvtColor(rgb_out, cv2.COLOR_RGB2BGR)
+            # 2. Reflect padding bội số 8 giống eval.py & eval_sets.py
+            factor = 8
+            _, _, h, w = tensor_in.shape
+            H = ((h + factor - 1) // factor) * factor
+            W = ((w + factor - 1) // factor) * factor
+            pad_h = H - h
+            pad_w = W - w
+            if pad_h > 0 or pad_w > 0:
+                padded_in = F.pad(tensor_in, (0, pad_w, 0, pad_h), mode='reflect')
+            else:
+                padded_in = tensor_in
+                
+            # 3. Model forward pass
+            with torch.no_grad():
+                output = self.model(padded_in ** gamma)
+                output = torch.clamp(output, 0.0, 1.0)
+                output = output[:, :, :h, :w]
+                
+            # 4. Chuyển đổi về uint8 BGR
+            rgb_out = (output.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255.0).clip(0, 255).astype(np.uint8)
+            return cv2.cvtColor(rgb_out, cv2.COLOR_RGB2BGR)
+        except Exception as e:
+            print(f"[LLIE Engine] Error during torch inference, falling back to HVI: {e}")
+            return self._rgb_to_hvi_enhance(img_bgr, gamma=gamma)
 
     def set_weight(self, weight_path: str) -> bool:
         """Thiết lập và nạp weight mới cho mô hình suy luận."""
@@ -516,7 +546,8 @@ class LowLightEnhancementEngine:
         # - Chế độ Live Camera trên Jetson Orin Nano / Linux có CUDA scan: chạy PyTorch / TensorRT model
         t_infer_start = time.perf_counter()
         use_torch = (self.model is not None)
-        if is_realtime_stream and (not self.has_cuda_scan) and (sys.platform == "win32"):
+        # Nếu đang live camera stream và mô hình cần CUDA scan (như Mamba/EdgeLCA) nhưng chạy Windows chưa cài selective_scan_cuda:
+        if is_realtime_stream and (not getattr(self, "is_cidnet_base", False)) and (not self.has_cuda_scan) and (sys.platform == "win32"):
             use_torch = False
 
         if use_torch:
@@ -566,6 +597,7 @@ class LowLightEnhancementEngine:
             "vram_used_mb": self.last_inf_vram_mb,
             "vram_used_gb": self.last_inf_vram_gb,
             "current_weight": self.current_weight,
+            "current_arch": getattr(self, "current_arch_name", "CIDNet_Base"),
             "niqe_score": getattr(self, "last_niqe_score", 4.12)
         }
         

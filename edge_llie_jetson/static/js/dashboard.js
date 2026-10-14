@@ -177,6 +177,12 @@ function updateDashboard(data) {
         if (selectEl && selectEl.value !== data.current_weight) {
             selectEl.value = data.current_weight;
         }
+        if (data.current_arch) {
+            const wrapper = document.querySelector(".weight-select-wrapper");
+            if (wrapper) {
+                wrapper.title = `Model Arch: ${data.current_arch}\nActive Weight: ${data.current_weight || ''}`;
+            }
+        }
     }
 
     // Source Mode Sync (Realtime vs Offline)
