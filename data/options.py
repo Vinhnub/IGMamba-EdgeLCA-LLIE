@@ -11,7 +11,7 @@ def _str2bool(v):
 def option():
     # Training settings
     parser = argparse.ArgumentParser(description='CIDNet')
-    parser.add_argument('--batchSize', type=int, default=4, help='training batch size')
+    parser.add_argument('--batchSize', type=int, default=8, help='training batch size')
     parser.add_argument('--cropSize', type=int, default=256, help='image crop size (patch size)')
     parser.add_argument('--nEpochs', type=int, default=1000, help='number of epochs to train for end')
     parser.add_argument('--start_epoch', type=int, default=0, help='number of epochs to start, >0 is retrained a pre-trained pth')
@@ -31,7 +31,7 @@ def option():
 
     # train datasets
     parser.add_argument('--data_train_lol_blur'     , type=str, default='./datasets/LOL_blur/train')
-    parser.add_argument('--data_train_lol_v1'       , type=str, default='E:/PythonFile/Project/Low-Light-Image-Enhancement/mydata/dataset/dataset/LOLv1/train')
+    parser.add_argument('--data_train_lol_v1'       , type=str, default='/content/LOLv1/train')
     parser.add_argument('--data_train_lolv2_real'   , type=str, default='/kaggle/input/datasets/vinhnub/lolv2-real/LOLv2-real/Train')
     parser.add_argument('--data_train_lolv2_syn'    , type=str, default='./datasets/LOLv2/Synthetic/Train')
     parser.add_argument('--data_train_SID'          , type=str, default='C:/Users/admin/Downloads/Sony_total_dark/Sony_total_dark/train')
@@ -41,7 +41,7 @@ def option():
 
     # validation input
     parser.add_argument('--data_val_lol_blur'       , type=str, default='./datasets/LOL_blur/eval/low_blur')
-    parser.add_argument('--data_val_lol_v1'         , type=str, default='E:/PythonFile/Project/Low-Light-Image-Enhancement/mydata/dataset/dataset/LOLv1/test/low')
+    parser.add_argument('--data_val_lol_v1'         , type=str, default='/content/LOLv1/test/low')
     parser.add_argument('--data_val_lolv2_real'     , type=str, default='/kaggle/input/datasets/vinhnub/lolv2-real/LOLv2-real/Test/Input')
     parser.add_argument('--data_val_lolv2_syn'      , type=str, default='./datasets/LOLv2/Synthetic/Test/Low')
     parser.add_argument('--data_val_SID'            , type=str, default='C:/Users/admin/Downloads/Sony_total_dark/Sony_total_dark/eval/short')
@@ -52,7 +52,7 @@ def option():
 
     # validation groundtruth
     parser.add_argument('--data_valgt_lol_blur'     , type=str, default='./datasets/LOL_blur/eval/high_sharp_scaled/')
-    parser.add_argument('--data_valgt_lol_v1'       , type=str, default='E:/PythonFile/Project/Low-Light-Image-Enhancement/mydata/dataset/dataset/LOLv1/test/high/')
+    parser.add_argument('--data_valgt_lol_v1'       , type=str, default='/content/LOLv1/test/high/')
     parser.add_argument('--data_valgt_lolv2_real'   , type=str, default='/kaggle/input/datasets/vinhnub/lolv2-real/LOLv2-real/Test/GT/')
     parser.add_argument('--data_valgt_lolv2_syn'    , type=str, default='./datasets/LOLv2/Synthetic/Test/Normal/')
     parser.add_argument('--data_valgt_SID'          , type=str, default='C:/Users/admin/Downloads/Sony_total_dark/Sony_total_dark/eval/long/')
@@ -73,7 +73,7 @@ def option():
     parser.add_argument('--LSGD_weight', type=float, default=1.0)
     parser.add_argument('--dark_focus', type=_str2bool, default=True, help='Enable dark focus for both IG_Mamba and LSGD loss (False focuses on bright regions)')
     parser.add_argument('--number_warmup_epoch', '--number_warmup_epochs', type=int, default=0, help='Number of warmup epochs for loss weights where weights are 0')
-    parser.add_argument('--number_transition_epoch', '--number_transition_epochs', type=int, default=1, help='Number of transition epochs for loss weights to linearly scale from 0 to 1')
+    parser.add_argument('--number_transition_epoch', '--number_transition_epochs', type=int, default=0, help='Number of transition epochs for loss weights to linearly scale from 0 to 1')
     
     # use random gamma function (enhancement curve) to improve generalization
     parser.add_argument('--gamma', type=_str2bool, default=False)
