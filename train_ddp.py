@@ -447,12 +447,12 @@ if __name__ == '__main__':
                 with open(f"./results/training/metrics{now}.md", "a") as f:
                     f.write(f"| {epoch} | {detailed_losses['total']:.4f} | {detailed_losses['l1']:.4f} | {detailed_losses['l2']:.4f} | {detailed_losses['d']:.4f} | {detailed_losses['p']:.4f} | {detailed_losses['e']:.4f} | {detailed_losses['lsgd']:.4f} | {detailed_losses['exp']:.4f} | {avg_psnr:.4f} | {avg_ssim:.4f} | {avg_lpips:.4f} | - |\n") 
                 
-                avg_psnr, avg_ssim, avg_lpips = metrics(im_dir, label_dir, use_GT_mean=True)
-                print("===> Avg.PSNR (GT): {:.4f} dB ".format(avg_psnr))
-                print("===> Avg.SSIM (GT): {:.4f} ".format(avg_ssim))
-                print("===> Avg.LPIPS (GT): {:.4f} ".format(avg_lpips))
-                with open(f"./results/training/metrics{now}.md", "a") as f:
-                    f.write(f"| {epoch} | {detailed_losses['total']:.4f} | {detailed_losses['l1']:.4f} | {detailed_losses['l2']:.4f} | {detailed_losses['d']:.4f} | {detailed_losses['p']:.4f} | {detailed_losses['e']:.4f} | {detailed_losses['lsgd']:.4f} | {detailed_losses['exp']:.4f} | {avg_psnr:.4f} | {avg_ssim:.4f} | {avg_lpips:.4f} | GT Mean |\n") 
+                # avg_psnr, avg_ssim, avg_lpips = metrics(im_dir, label_dir, use_GT_mean=True)
+                # print("===> Avg.PSNR (GT): {:.4f} dB ".format(avg_psnr))
+                # print("===> Avg.SSIM (GT): {:.4f} ".format(avg_ssim))
+                # print("===> Avg.LPIPS (GT): {:.4f} ".format(avg_lpips))
+                # with open(f"./results/training/metrics{now}.md", "a") as f:
+                #     f.write(f"| {epoch} | {detailed_losses['total']:.4f} | {detailed_losses['l1']:.4f} | {detailed_losses['l2']:.4f} | {detailed_losses['d']:.4f} | {detailed_losses['p']:.4f} | {detailed_losses['e']:.4f} | {detailed_losses['lsgd']:.4f} | {detailed_losses['exp']:.4f} | {avg_psnr:.4f} | {avg_ssim:.4f} | {avg_lpips:.4f} | GT Mean |\n") 
 
         # Đảm bảo các GPU đợi GPU 0 hoàn thành eval xong rồi mới chuyển epoch tiếp theo
         if dist.is_initialized():

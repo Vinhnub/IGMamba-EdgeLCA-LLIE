@@ -11,7 +11,7 @@ def _str2bool(v):
 def option():
     # Training settings
     parser = argparse.ArgumentParser(description='CIDNet')
-    parser.add_argument('--batchSize', type=int, default=8, help='training batch size')
+    parser.add_argument('--batchSize', type=int, default=4, help='training batch size')
     parser.add_argument('--cropSize', type=int, default=256, help='image crop size (patch size)')
     parser.add_argument('--nEpochs', type=int, default=1000, help='number of epochs to train for end')
     parser.add_argument('--start_epoch', type=int, default=0, help='number of epochs to start, >0 is retrained a pre-trained pth')
