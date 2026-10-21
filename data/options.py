@@ -31,7 +31,7 @@ def option():
 
     # train datasets
     parser.add_argument('--data_train_lol_blur'     , type=str, default='./datasets/LOL_blur/train')
-    parser.add_argument('--data_train_lol_v1'       , type=str, default='/content/LOLv1/train')
+    parser.add_argument('--data_train_lol_v1'       , type=str, default='/kaggle/input/datasets/vinhnub/lolv1111/LOLv1/train')
     parser.add_argument('--data_train_lolv2_real'   , type=str, default='/kaggle/input/datasets/vinhnub/lolv2-real/LOLv2-real/Train')
     parser.add_argument('--data_train_lolv2_syn'    , type=str, default='./datasets/LOLv2/Synthetic/Train')
     parser.add_argument('--data_train_SID'          , type=str, default='C:/Users/admin/Downloads/Sony_total_dark/Sony_total_dark/train')
@@ -41,7 +41,7 @@ def option():
 
     # validation input
     parser.add_argument('--data_val_lol_blur'       , type=str, default='./datasets/LOL_blur/eval/low_blur')
-    parser.add_argument('--data_val_lol_v1'         , type=str, default='/content/LOLv1/test/low')
+    parser.add_argument('--data_val_lol_v1'         , type=str, default='/kaggle/input/datasets/vinhnub/lolv1111/LOLv1/test/low')
     parser.add_argument('--data_val_lolv2_real'     , type=str, default='/kaggle/input/datasets/vinhnub/lolv2-real/LOLv2-real/Test/Input')
     parser.add_argument('--data_val_lolv2_syn'      , type=str, default='./datasets/LOLv2/Synthetic/Test/Low')
     parser.add_argument('--data_val_SID'            , type=str, default='C:/Users/admin/Downloads/Sony_total_dark/Sony_total_dark/eval/short')
@@ -52,7 +52,7 @@ def option():
 
     # validation groundtruth
     parser.add_argument('--data_valgt_lol_blur'     , type=str, default='./datasets/LOL_blur/eval/high_sharp_scaled/')
-    parser.add_argument('--data_valgt_lol_v1'       , type=str, default='/content/LOLv1/test/high/')
+    parser.add_argument('--data_valgt_lol_v1'       , type=str, default='/kaggle/input/datasets/vinhnub/lolv1111/LOLv1/test/high/')
     parser.add_argument('--data_valgt_lolv2_real'   , type=str, default='/kaggle/input/datasets/vinhnub/lolv2-real/LOLv2-real/Test/GT/')
     parser.add_argument('--data_valgt_lolv2_syn'    , type=str, default='./datasets/LOLv2/Synthetic/Test/Normal/')
     parser.add_argument('--data_valgt_SID'          , type=str, default='C:/Users/admin/Downloads/Sony_total_dark/Sony_total_dark/eval/long/')

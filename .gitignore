@@ -187,3 +187,5 @@ generate_comparison_single_row.py
 eval_image_pair.py
 cert.pem
 key.pem
+tools
+docs

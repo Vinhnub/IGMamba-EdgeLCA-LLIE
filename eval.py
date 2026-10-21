@@ -97,7 +97,7 @@ if __name__ == '__main__':
         if ep.perc:
             weight_path = './weights/LOLv1/w_perc.pth'
         else:
-            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv1\wo-EdgeLCA\Denoise\w-Loss\epoch_490_best_PSNR.pth'
+            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv1\Mamba_SL_IG_EdgeLCA\Denoise\epoch_595_best_PSNR.pth'
         
             
     elif ep.lol_v2_real:
@@ -107,7 +107,7 @@ if __name__ == '__main__':
             weight_path = './weights/LOLv2_real/w_perc.pth'
             alpha = 0.84
         elif ep.best_PSNR:
-            weight_path = r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv2_Real\wo-Deltamod\epoch_220.pth"
+            weight_path = r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv2_Real\Mamba_SL_IG_EdgeLCA\Denoise\w-Loss\epoch_255_best_PSNR.pth"
             alpha = 0.8
         elif ep.best_SSIM:
             weight_path = r"E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_cidnet\LOLv2_real\best_SSIM.pth"
@@ -119,7 +119,7 @@ if __name__ == '__main__':
         if ep.perc:
             weight_path = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/weights_cidnet/LOLv2_syn/w_perc.pth'
         else:
-            weight_path = 'E:/PythonFile/Project/IGMamba-EdgeLCA-LLIE/weights_cidnet/LOLv2_syn/wo_perc.pth'
+            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv2_Syn\Mamba_SL_IG_EdgeLCA\Denoise\epoch_455_best_PSNR.pth'
             
     elif ep.SICE_grad:
         eval_data = DataLoader(dataset=get_SICE_eval_set("./datasets/SICE/SICE_Grad"), num_workers=num_workers, batch_size=1, shuffle=False)
