@@ -11,7 +11,16 @@ from net.CIDNet_Mamba_separable_learning_edge import CIDNet
 
 def eval(model, testing_data_loader, model_path, output_folder,norm_size=True,LOL=False,v2=False,unpaired=False,alpha=1.0,gamma=1.0):
     torch.set_grad_enabled(False)
-    model.load_state_dict(torch.load(model_path, map_location=lambda storage, loc: storage))
+    state = torch.load(model_path, map_location=lambda storage, loc: storage)
+    if isinstance(state, dict) and 'state_dict' in state:
+        state = state['state_dict']
+    elif isinstance(state, dict) and 'model' in state:
+        state = state['model']
+    new_state = {}
+    for k, v in state.items():
+        name = k[7:] if k.startswith('module.') else k
+        new_state[name] = v
+    model.load_state_dict(new_state)
     print('Pre-trained model is loaded.')
     model.eval()
     print('Evaluation:')
@@ -97,7 +106,7 @@ if __name__ == '__main__':
         if ep.perc:
             weight_path = './weights/LOLv1/w_perc.pth'
         else:
-            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv1\Mamba_SL_IG_EdgeLCA\Denoise\epoch_595_best_PSNR.pth'
+            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv1\Mamba_SL_IG_EdgeLCA\Denoise\EdgeScale_1\epoch_530.pth'
         
             
     elif ep.lol_v2_real:

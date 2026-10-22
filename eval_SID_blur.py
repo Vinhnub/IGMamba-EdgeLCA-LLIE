@@ -9,7 +9,16 @@ from net.CIDNet import CIDNet
 
 def eval(model, testing_data_loader, model_path, output_folder):
     torch.set_grad_enabled(False)
-    model.load_state_dict(torch.load(model_path, map_location=lambda storage, loc: storage))
+    state = torch.load(model_path, map_location=lambda storage, loc: storage)
+    if isinstance(state, dict) and 'state_dict' in state:
+        state = state['state_dict']
+    elif isinstance(state, dict) and 'model' in state:
+        state = state['model']
+    new_state = {}
+    for k, v in state.items():
+        name = k[7:] if k.startswith('module.') else k
+        new_state[name] = v
+    model.load_state_dict(new_state)
     model.eval()
     print('Evaluation: ', output_folder)
     for batch in testing_data_loader:

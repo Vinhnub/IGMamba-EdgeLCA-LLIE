@@ -25,7 +25,16 @@ eval_net.trans.gated2 = True
 
 def process_image(input_img,score,model_path,gamma,alpha_s=1.0,alpha_i=1.0):
     torch.set_grad_enabled(False)
-    eval_net.load_state_dict(torch.load(os.path.join(directory,model_path), map_location=lambda storage, loc: storage))
+    state = torch.load(os.path.join(directory,model_path), map_location=lambda storage, loc: storage)
+    if isinstance(state, dict) and 'state_dict' in state:
+        state = state['state_dict']
+    elif isinstance(state, dict) and 'model' in state:
+        state = state['model']
+    new_state = {}
+    for k, v in state.items():
+        name = k[7:] if k.startswith('module.') else k
+        new_state[name] = v
+    eval_net.load_state_dict(new_state)
     eval_net.eval()
     
     pil2tensor = transforms.Compose([transforms.ToTensor()])

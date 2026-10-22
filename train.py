@@ -182,14 +182,21 @@ def train(epoch):
     return loss_print, pic_cnt, detailed_losses
                 
 
-def checkpoint(epoch):
+def checkpoint(epoch, lr=None):
     if not os.path.exists("./weights"):          
         os.mkdir("./weights") 
     if not os.path.exists("./weights/train"):          
         os.mkdir("./weights/train")  
     model_out_path = "./weights/train/epoch_{}.pth".format(epoch)
-    torch.save(model.state_dict(), model_out_path)
-    print("Checkpoint saved to {}".format(model_out_path))
+    current_lr = lr if lr is not None else optimizer.param_groups[0]['lr']
+    checkpoint_dict = {
+        'epoch': epoch,
+        'state_dict': model.state_dict(),
+        'lr': current_lr,
+        'optimizer': optimizer.state_dict(),
+    }
+    torch.save(checkpoint_dict, model_out_path)
+    print("Checkpoint saved to {} (lr: {:.8f})".format(model_out_path, current_lr))
     return model_out_path
     
 def load_datasets():
@@ -238,9 +245,24 @@ def load_datasets():
 def build_model():
     print('===> Building model ')
     model = CIDNet().cuda()
+    checkpoint_data = None
     if opt.start_epoch > 0:
         pth = f"./weights/train/epoch_{opt.start_epoch}.pth"
-        model.load_state_dict(torch.load(pth, map_location=lambda storage, loc: storage))
+        if not os.path.exists(pth):
+            raise FileNotFoundError(f"Checkpoint not found at: {pth}")
+        checkpoint_data = torch.load(pth, map_location=lambda storage, loc: storage)
+        raw_state_dict = checkpoint_data
+        if isinstance(checkpoint_data, dict) and 'state_dict' in checkpoint_data:
+            raw_state_dict = checkpoint_data['state_dict']
+        elif isinstance(checkpoint_data, dict) and 'model' in checkpoint_data:
+            raw_state_dict = checkpoint_data['model']
+
+        new_state_dict = {}
+        for k, v in raw_state_dict.items():
+            name = k[7:] if k.startswith('module.') else k
+            new_state_dict[name] = v
+        model.load_state_dict(new_state_dict, strict=False)
+        print(f"Loaded weights from {pth}")
 
     # Cấu hình Dark Focus cho các module hỗ trợ (IG_Mamba)
     ig_mamba_count = 0
@@ -250,22 +272,24 @@ def build_model():
             ig_mamba_count += 1
     focus_target = "DARK regions (vùng tối)" if opt.dark_focus else "BRIGHT regions (vùng sáng)"
     print(f"===> Dark Focus: {opt.dark_focus} -> Tập trung ưu tiên: {focus_target} (đã đồng bộ {ig_mamba_count} modules)")
-    return model
+    return model, checkpoint_data
 
-def make_scheduler():
-    optimizer = optim.Adam(model.parameters(), lr=opt.lr)      
+def make_scheduler(lr=None):
+    train_lr = lr if lr is not None else opt.lr
+    optimizer = optim.Adam(model.parameters(), lr=train_lr)      
     if opt.cos_restart_cyclic:
-        if opt.start_warmup:
+        if opt.start_warmup and opt.start_epoch == 0:
             scheduler_step = CosineAnnealingRestartCyclicLR(optimizer=optimizer, periods=[(opt.nEpochs//4)-opt.warmup_epochs, (opt.nEpochs*3)//4], restart_weights=[1,1],eta_mins=[0.0002,0.0000001])
             scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=opt.warmup_epochs, after_scheduler=scheduler_step)
         else:
             scheduler = CosineAnnealingRestartCyclicLR(optimizer=optimizer, periods=[opt.nEpochs//4, (opt.nEpochs*3)//4], restart_weights=[1,1],eta_mins=[0.0002,0.0000001])
     elif opt.cos_restart:
-        if opt.start_warmup:
-            scheduler_step = CosineAnnealingRestartLR(optimizer=optimizer, periods=[opt.nEpochs - opt.warmup_epochs - opt.start_epoch], restart_weights=[1],eta_min=1e-7)
+        if opt.start_warmup and opt.start_epoch == 0:
+            scheduler_step = CosineAnnealingRestartLR(optimizer=optimizer, periods=[opt.nEpochs - opt.warmup_epochs], restart_weights=[1],eta_min=1e-7)
             scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=opt.warmup_epochs, after_scheduler=scheduler_step)
         else:
-            scheduler = CosineAnnealingRestartLR(optimizer=optimizer, periods=[opt.nEpochs - opt.start_epoch], restart_weights=[1],eta_min=1e-7)
+            remaining_epochs = max(1, opt.nEpochs - opt.start_epoch)
+            scheduler = CosineAnnealingRestartLR(optimizer=optimizer, periods=[remaining_epochs], restart_weights=[1],eta_min=1e-7)
     else:
         raise Exception("should choose a scheduler")
     return optimizer,scheduler
@@ -302,8 +326,34 @@ if __name__ == '__main__':
     '''
     train_init()
     training_data_loader, testing_data_loader = load_datasets()
-    model = build_model()
-    optimizer,scheduler = make_scheduler()
+    model, checkpoint_data = build_model()
+    
+    # Xác định learning rate khi bắt đầu / tiếp tục train:
+    resume_lr = None
+    if opt.start_epoch > 0:
+        if checkpoint_data is not None and isinstance(checkpoint_data, dict):
+            resume_lr = checkpoint_data.get('lr', None)
+            
+        if resume_lr is not None:
+            print(f"===> [Resume] Đã tải learning rate từ checkpoint epoch_{opt.start_epoch}: {resume_lr:.8f}")
+        else:
+            resume_lr = opt.lr
+            print(f"===> [Resume] Không tìm thấy lr trong checkpoint epoch_{opt.start_epoch}. Tự động sử dụng lr mặc định: {opt.lr}")
+    else:
+        print(f"===> Khởi đầu huấn luyện từ epoch 1 với lr: {opt.lr}")
+
+    optimizer, scheduler = make_scheduler(lr=resume_lr)
+
+    if checkpoint_data is not None and isinstance(checkpoint_data, dict) and 'optimizer' in checkpoint_data:
+        try:
+            optimizer.load_state_dict(checkpoint_data['optimizer'])
+            target_lr = resume_lr if resume_lr is not None else opt.lr
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = target_lr
+            print("===> Đã khôi phục trạng thái optimizer từ checkpoint")
+        except Exception as e:
+            print(f"===> Không thể nạp trạng thái optimizer ({e}), sử dụng optimizer mới")
+
     L1_loss, L2_loss, P_loss, E_loss, D_loss, LSGD_loss, EXP_loss = init_loss()
     
     '''
@@ -321,7 +371,7 @@ if __name__ == '__main__':
     now = datetime.now().strftime("%Y-%m-%d-%H%M%S")
     with open(f"./results/training/metrics{now}.md", "w") as f:
         f.write("dataset: "+ opt.dataset + "\n")  
-        f.write(f"lr: {opt.lr}\n")  
+        f.write(f"lr: {optimizer.param_groups[0]['lr']}\n")  
         f.write(f"batch size: {opt.batchSize}\n")  
         f.write(f"crop size: {opt.cropSize}\n")  
         f.write(f"HVI_weight: {opt.HVI_weight}\n")  
@@ -336,11 +386,12 @@ if __name__ == '__main__':
         f.write("|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")  
         
     for epoch in range(start_epoch+1, opt.nEpochs + start_epoch + 1):
+        current_lr = optimizer.param_groups[0]['lr']
         epoch_loss, pic_num, detailed_losses = train(epoch)
         scheduler.step()
         
         if epoch % opt.snapshots == 0:
-            model_out_path = checkpoint(epoch) 
+            model_out_path = checkpoint(epoch, lr=current_lr) 
             norm_size = True
 
             # LOL three subsets

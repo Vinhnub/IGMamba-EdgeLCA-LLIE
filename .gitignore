@@ -161,7 +161,6 @@ cython_debug/
 
 results
 output
-weights
 flagged
 output_hf
 output_hvi
@@ -189,3 +188,4 @@ cert.pem
 key.pem
 tools
 docs
+weights_pre
