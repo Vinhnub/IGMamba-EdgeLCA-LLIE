@@ -352,7 +352,7 @@ def init_loss():
     D_loss = SSIM(weight=D_weight).cuda()
     E_loss = EdgeLoss(loss_weight=E_weight).cuda()
     P_loss = PerceptualLoss({'conv1_2': 1, 'conv2_2': 1,'conv3_4': 1,'conv4_4': 1}, perceptual_weight = P_weight ,criterion='mse').cuda()
-    LSGD_loss = RegionLSGDLoss(loss_weight=LSGD_weight, dark_focus=opt.dark_focus).cuda()
+    LSGD_loss = RegionLSGDLoss(loss_weight=LSGD_weight, dark_focus=None).cuda()
     EXP_loss = ExposureControlLoss(patch_size=16, mean_val=0.6, loss_weight=0.0).cuda()
 
     return (

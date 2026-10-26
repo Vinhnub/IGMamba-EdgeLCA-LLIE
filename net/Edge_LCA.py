@@ -32,7 +32,7 @@ class EdgeGuided_CAB(nn.Module):
         self.kv_dwconv = nn.Conv2d(dim * 2, dim * 2, kernel_size=3, stride=1, padding=1, groups=dim * 2, bias=bias)
 
         # Hệ số học điều biến cạnh cho Q và K
-        self.edge_scale = nn.Parameter(torch.tensor(1.0))
+        self.edge_scale = nn.Parameter(torch.tensor(0.5))
 
         # Cổng không gian ngõ ra (Edge Gating)
         self.edge_gate = nn.Sequential(
