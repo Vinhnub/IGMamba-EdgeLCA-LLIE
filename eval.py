@@ -106,7 +106,7 @@ if __name__ == '__main__':
         if ep.perc:
             weight_path = './weights/LOLv1/w_perc.pth'
         else:
-            weight_path = r'E:\PythonFile\Project\IGMamba-EdgeLCA-LLIE\weights_and_results\LoLv1\Mamba_SL_IG_EdgeLCA\Denoise\EdgeScale_1\epoch_530.pth'
+            weight_path = r'weights_and_results\LoLv1\Mamba_SL_IG_EdgeLCA\DarkFocus\EdgeScale_1\train\epoch_840.pth'
         
             
     elif ep.lol_v2_real:
