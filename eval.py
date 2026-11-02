@@ -6,7 +6,7 @@ from data.data import *
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from loss.losses import *
-from net.CIDNet_Mamba_separable_learning_edge import CIDNet
+from net.CIDNet_ablation import CIDNet_HV_Mamba_I_Mamba as CIDNet
 
 
 def eval(model, testing_data_loader, model_path, output_folder,norm_size=True,LOL=False,v2=False,unpaired=False,alpha=1.0,gamma=1.0):
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         if ep.perc:
             weight_path = './weights/LOLv1/w_perc.pth'
         else:
-            weight_path = r'weights_and_results\LoLv1\Mamba_SL_IG_EdgeLCA\DarkFocus\EdgeScale_1\train\epoch_840.pth'
+            weight_path = r'weights_and_results\LoLv1\Both-Mamba\train\epoch_230.pth'
         
             
     elif ep.lol_v2_real:
